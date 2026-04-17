@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './AuthForm.module.css';
+import { register } from '../services/authService';
 
 interface RegisterFormProps {
   switchToLogin?: () => void;
@@ -11,8 +12,9 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password || !confirm) {
       setError('Vui lòng nhập đầy đủ thông tin!');
@@ -29,17 +31,29 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
       setSuccess('');
       return;
     }
-    // Giả lập: nếu username là "user" thì báo đã tồn tại
-    if (username === 'user') {
-      setError('Tên đăng nhập đã tồn tại!');
+
+    try {
+      setLoading(true);
+      const message = await register(username, password);
       setSuccess('');
-      return;
+      setError('');
+      setSuccess(message || 'Đăng ký thành công!');
+      setUsername('');
+      setPassword('');
+      setConfirm('');
+      window.setTimeout(() => {
+        switchToLogin && switchToLogin();
+      }, 800);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'Đăng ký thất bại!');
+      } else {
+        setError('Đăng ký thất bại!');
+      }
+      setSuccess('');
+    } finally {
+      setLoading(false);
     }
-    setError('');
-    setSuccess('Đăng ký thành công!');
-    setUsername('');
-    setPassword('');
-    setConfirm('');
   };
 
   return (
@@ -52,6 +66,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           type="text"
           placeholder="Tên đăng nhập"
           value={username}
+          disabled={loading}
           onChange={e => setUsername(e.target.value)}
           autoComplete="username"
         />
@@ -60,6 +75,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           type="password"
           placeholder="Mật khẩu (tối thiểu 6 ký tự)"
           value={password}
+          disabled={loading}
           onChange={e => setPassword(e.target.value)}
           autoComplete="new-password"
         />
@@ -68,10 +84,13 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           type="password"
           placeholder="Xác nhận mật khẩu"
           value={confirm}
+          disabled={loading}
           onChange={e => setConfirm(e.target.value)}
           autoComplete="new-password"
         />
-        <button className={styles['auth-btn']} type="submit">Đăng ký</button>
+        <button className={styles['auth-btn']} type="submit" disabled={loading}>
+          {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+        </button>
       </form>
       <div className={styles['auth-switch']}>
         Đã có tài khoản?

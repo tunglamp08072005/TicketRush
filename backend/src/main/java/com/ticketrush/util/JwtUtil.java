@@ -1,9 +1,14 @@
 package com.ticketrush.util;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
 @Component
@@ -15,11 +20,24 @@ public class JwtUtil {
     private long jwtExpiration;
 
     public String generateToken(String username) {
+        SecretKey key = buildSigningKey(jwtSecret);
+
         return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                .signWith(SignatureAlgorithm.HS512, jwtSecret)
+                .subject(username)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .signWith(key, Jwts.SIG.HS512)
                 .compact();
+    }
+
+    private SecretKey buildSigningKey(String rawSecret) {
+        try {
+            // Derive a fixed 64-byte key for HS512 even when configured secret is short.
+            MessageDigest digest = MessageDigest.getInstance("SHA-512");
+            byte[] keyBytes = digest.digest(rawSecret.getBytes(StandardCharsets.UTF_8));
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Unable to initialize JWT signing key", ex);
+        }
     }
 }

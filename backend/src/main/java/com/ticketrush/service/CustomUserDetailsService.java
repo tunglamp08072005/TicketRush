@@ -18,9 +18,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         com.ticketrush.entity.User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        String role = user.getRole() == null || user.getRole().isBlank() ? "USER" : user.getRole().toUpperCase();
+
         return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
             .password(user.getPassword())
-            .roles("USER")
+            .roles(role)
             .build();
     }
 }

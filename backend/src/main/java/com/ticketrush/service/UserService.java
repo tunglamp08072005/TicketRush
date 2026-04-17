@@ -16,7 +16,25 @@ public class UserService {
 
     public User saveUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        if (user.getRole() == null || user.getRole().isBlank()) {
+            user.setRole("USER");
+        } else {
+            user.setRole(normalizeRole(user.getRole()));
+        }
         return userRepository.save(user);
+    }
+
+    public String normalizeRole(String role) {
+        if (role == null || role.isBlank()) {
+            return "USER";
+        }
+
+        String normalized = role.trim().toUpperCase();
+        if (normalized.startsWith("ROLE_")) {
+            normalized = normalized.substring(5);
+        }
+
+        return normalized;
     }
 
     public boolean existsByUsername(String username) {

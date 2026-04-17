@@ -4,11 +4,11 @@
             "type": "java",
             "name": "Spring Boot-TicketRushApplication<backend>",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/backend", 
             "mainClass": "com.ticketrush.TicketRushApplication",
             "projectName": "backend",
             "args": "",
-            "envFile": "${workspaceFolder}/.env",
+            "envFile": "${workspaceFolder}/backend/.env", 
             "vmArgs": "-Duser.timezone=Asia/Ho_Chi_Minh"
         }
     ]
