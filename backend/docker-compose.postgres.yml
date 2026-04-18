@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ticketrush-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ticketrush
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "55432:5432"
+    volumes:
+      - ticketrush_pg_data:/var/lib/postgresql/data
+
+volumes:
+  ticketrush_pg_data:

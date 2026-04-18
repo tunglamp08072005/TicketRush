@@ -1,0 +1,193 @@
+.auth-container {
+  background: rgba(10, 10, 10, 0.75);
+  border-radius: 1.7rem;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  padding: 2.2rem 2rem 1.5rem 2rem;
+  width: 100%;
+  max-width: 420px;
+  min-height: 340px;
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  animation: cardAppear 1.2s cubic-bezier(.77,0,.18,1);
+}
+@keyframes cardAppear {
+  0% { opacity: 0; transform: scale(0.8) translateY(60px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.auth-title {
+  display: none;
+}
+
+.auth-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  font-size: 1.08rem;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.auth-input:focus {
+  border-color: #aa3bff;
+  outline: none;
+  box-shadow: 0 0 8px #aa3bff99;
+}
+
+.auth-btn {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 0;
+  background: #e50914;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  box-shadow: 0 12px 24px rgba(229, 9, 20, 0.4);
+  letter-spacing: 0.04em;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.auth-btn:hover {
+  background: #bf0711;
+  box-shadow: 0 16px 30px rgba(229, 9, 20, 0.5);
+  transform: translateY(-1px);
+}
+
+.google-btn {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 6px 18px rgba(156, 163, 175, 0.25);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.google-btn:hover {
+  background: #f9fafb;
+  box-shadow: 0 8px 20px rgba(156, 163, 175, 0.3);
+  transform: translateY(-1px);
+}
+
+.google-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.google-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.auth-btn-secondary {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 0;
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.auth-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.auth-text-link {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: #ff9b9b;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-text-link:hover {
+  color: #ffc0c0;
+}
+.auth-switch {
+  margin-top: 1.3rem;
+  color: #fff9;
+  font-size: 1.01rem;
+  text-align: center;
+}
+.auth-link {
+  color: #e50914;
+  font-weight: 700;
+  margin-left: 0.5em;
+  cursor: pointer;
+  text-shadow: 0 0 10px rgba(229, 9, 20, 0.45);
+  transition: color 0.2s, text-shadow 0.2s;
+}
+.auth-link:hover {
+  color: #ff3a24;
+  text-shadow: 0 0 14px rgba(255, 58, 36, 0.6);
+}
+
+.auth-error {
+  background: rgba(255, 0, 80, 0.13);
+  color: #ff4d6d;
+  border-radius: 8px;
+  padding: 0.7em 1em;
+  margin-bottom: 1em;
+  font-weight: 600;
+  box-shadow: 0 0 8px #ff4d6d33;
+  text-align: center;
+}
+.auth-success {
+  background: rgba(40, 255, 180, 0.13);
+  color: #27ae60;
+  border-radius: 8px;
+  padding: 0.7em 1em;
+  margin-bottom: 1em;
+  font-weight: 600;
+  box-shadow: 0 0 8px #27ae6033;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .auth-container {
+    min-width: 90vw;
+    padding: 1.2rem 0.5rem;
+  }
+  .auth-title {
+    font-size: 1.3rem;
+  }
+}
