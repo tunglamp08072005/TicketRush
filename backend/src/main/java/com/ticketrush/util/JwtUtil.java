@@ -1,6 +1,7 @@
 package com.ticketrush.util;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,29 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(key, Jwts.SIG.HS512)
                 .compact();
+    }
+
+    public String extractUsername(String token) {
+        SecretKey key = buildSigningKey(jwtSecret);
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+    }
+
+    public boolean isTokenValid(String token) {
+        try {
+            SecretKey key = buildSigningKey(jwtSecret);
+            Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
     }
 
     private SecretKey buildSigningKey(String rawSecret) {

@@ -15,6 +15,7 @@ export default function LoginForm({ onLogin, switchToRegister }: LoginFormProps)
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resetStep, setResetStep] = useState<'request' | 'verify'>('request');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -74,13 +75,18 @@ export default function LoginForm({ onLogin, switchToRegister }: LoginFormProps)
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail.trim() || !resetCode.trim() || !newPassword) {
-      setError('Vui lòng nhập đầy đủ email, mã xác thực và mật khẩu mới!');
+    if (!forgotEmail.trim() || !resetCode.trim() || !newPassword || !confirmNewPassword) {
+      setError('Vui lòng nhập đầy đủ email, mã xác thực, mật khẩu mới và nhập lại mật khẩu!');
       setSuccess('');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Mật khẩu mới phải từ 6 ký tự!');
+    if (newPassword.length < 8) {
+      setError('Mật khẩu mới phải từ 8 ký tự!');
+      setSuccess('');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Mật khẩu nhập lại không khớp!');
       setSuccess('');
       return;
     }
@@ -95,6 +101,7 @@ export default function LoginForm({ onLogin, switchToRegister }: LoginFormProps)
       setForgotEmail('');
       setResetCode('');
       setNewPassword('');
+      setConfirmNewPassword('');
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message || 'Đặt lại mật khẩu thất bại!');
@@ -169,10 +176,19 @@ export default function LoginForm({ onLogin, switchToRegister }: LoginFormProps)
                 <input
                   className={styles['auth-input']}
                   type="password"
-                  placeholder="Mật khẩu mới"
+                  placeholder="Mật khẩu mới (tối thiểu 8 ký tự)"
                   value={newPassword}
                   disabled={loading}
                   onChange={e => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+                <input
+                  className={styles['auth-input']}
+                  type="password"
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={confirmNewPassword}
+                  disabled={loading}
+                  onChange={e => setConfirmNewPassword(e.target.value)}
                   autoComplete="new-password"
                 />
               </>
@@ -213,6 +229,7 @@ export default function LoginForm({ onLogin, switchToRegister }: LoginFormProps)
               setForgotEmail('');
               setResetCode('');
               setNewPassword('');
+              setConfirmNewPassword('');
               setError('');
               setSuccess('');
             }}
@@ -230,6 +247,7 @@ export default function LoginForm({ onLogin, switchToRegister }: LoginFormProps)
               setResetStep('request');
               setResetCode('');
               setNewPassword('');
+              setConfirmNewPassword('');
               setError('');
             }}
           >

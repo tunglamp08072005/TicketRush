@@ -61,4 +61,8 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(rawPassword));
         userRepository.save(user);
     }
+
+    public User saveExistingUser(User user) {
+        return userRepository.save(user);
+    }
 }

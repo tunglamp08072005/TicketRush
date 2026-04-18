@@ -26,6 +26,15 @@ public class User {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "profile_text", length = 1000)
+    private String profileText;
+
+    @Column(name = "avatar_url", length = 1000)
+    private String avatarUrl;
+
+    @Column(name = "phone_number", length = 32)
+    private String phoneNumber;
+
     // Getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -37,4 +46,10 @@ public class User {
     public void setPassword(String password) { this.password = password; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public String getProfileText() { return profileText; }
+    public void setProfileText(String profileText) { this.profileText = profileText; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 }

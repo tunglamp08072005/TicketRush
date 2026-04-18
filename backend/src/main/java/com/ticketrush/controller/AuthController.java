@@ -166,6 +166,11 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/password/forgot")
+    public ResponseEntity<?> forgotPasswordGetNotSupported() {
+        return ResponseEntity.status(405).body("Method not allowed. Use POST /api/auth/password/forgot");
+    }
+
     @PostMapping("/password/reset")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
         String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
@@ -175,8 +180,8 @@ public class AuthController {
         if (email.isBlank() || code.isBlank() || newPassword.isBlank()) {
             return ResponseEntity.badRequest().body("Email, code and new password are required");
         }
-        if (newPassword.length() < 6) {
-            return ResponseEntity.badRequest().body("Password must be at least 6 characters");
+        if (newPassword.length() < 8) {
+            return ResponseEntity.badRequest().body("Password must be at least 8 characters");
         }
 
         User user = userService.findByEmail(email);
@@ -191,5 +196,10 @@ public class AuthController {
 
         userService.updatePassword(user, newPassword);
         return ResponseEntity.ok("Password reset successfully");
+    }
+
+    @GetMapping("/password/reset")
+    public ResponseEntity<?> resetPasswordGetNotSupported() {
+        return ResponseEntity.status(405).body("Method not allowed. Use POST /api/auth/password/reset");
     }
 }

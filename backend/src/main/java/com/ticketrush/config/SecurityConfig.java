@@ -58,7 +58,11 @@ public class SecurityConfig {
                     "/api/auth/register/request",
                     "/api/auth/register/verify",
                     "/api/auth/password/forgot",
-                    "/api/auth/password/reset"
+                    "/api/auth/password/reset",
+                    "/api/user/profile",
+                    "/api/events/featured",
+                    "/api/admin/events",
+                    "/api/admin/events/upload-poster"
                 ).permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/error").permitAll()
