@@ -3,6 +3,7 @@ package com.ticketrush.dto;
 import com.ticketrush.entity.EventStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class EventDto {
     private Long id;
@@ -13,11 +14,13 @@ public class EventDto {
     private String thumbnailUrl;
     private LocalDateTime openSaleDate;
     private EventStatus status;
+    private int totalSeatCount;
+    private List<EventZoneDto> zones;
 
     public EventDto() {
     }
 
-    public EventDto(Long id, String name, String description, String location, String heroImageUrl, String thumbnailUrl, LocalDateTime openSaleDate, EventStatus status) {
+    public EventDto(Long id, String name, String description, String location, String heroImageUrl, String thumbnailUrl, LocalDateTime openSaleDate, EventStatus status, int totalSeatCount, List<EventZoneDto> zones) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -26,6 +29,8 @@ public class EventDto {
         this.thumbnailUrl = thumbnailUrl;
         this.openSaleDate = openSaleDate;
         this.status = status;
+        this.totalSeatCount = totalSeatCount;
+        this.zones = zones;
     }
 
     public Long getId() {
@@ -90,5 +95,21 @@ public class EventDto {
 
     public void setStatus(EventStatus status) {
         this.status = status;
+    }
+
+    public int getTotalSeatCount() {
+        return totalSeatCount;
+    }
+
+    public void setTotalSeatCount(int totalSeatCount) {
+        this.totalSeatCount = totalSeatCount;
+    }
+
+    public List<EventZoneDto> getZones() {
+        return zones;
+    }
+
+    public void setZones(List<EventZoneDto> zones) {
+        this.zones = zones;
     }
 }

@@ -62,7 +62,7 @@ public class SecurityConfig {
                     "/api/user/profile",
                     "/api/events/featured",
                     "/api/admin/events",
-                    "/api/admin/events/upload-poster"
+                    "/api/admin/events/**"
                 ).permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/error").permitAll()

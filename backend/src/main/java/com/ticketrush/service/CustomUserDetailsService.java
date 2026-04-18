@@ -15,7 +15,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        com.ticketrush.entity.User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+        String normalized = usernameOrEmail == null ? "" : usernameOrEmail.trim();
+        com.ticketrush.entity.User user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(normalized, normalized)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         String role = user.getRole() == null || user.getRole().isBlank() ? "USER" : user.getRole().toUpperCase();
