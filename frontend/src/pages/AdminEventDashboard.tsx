@@ -55,7 +55,7 @@ export default function AdminEventDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-950 px-6 py-8 text-gray-100 lg:px-10">
+    <div className="text-gray-100">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">Quan ly Su kien</h1>
