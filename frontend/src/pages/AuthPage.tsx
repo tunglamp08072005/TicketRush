@@ -55,7 +55,7 @@ export default function AuthPage() {
         <div className="auth-header">
           <div className="auth-brand">TicketRush</div>
           <h1>Đăng nhập hoặc tạo tài khoản</h1>
-          <p>Trải nghiệm đặt vé nhanh chóng, an toàn và tối ưu cho mọi rạp phim.</p>
+          <p>Trải nghiệm đặt vé nhanh chóng, an toàn và tối ưu cho mọi sự kiện âm nhạc và giải trí.</p>
         </div>
 
         <div className="auth-tab-bar">

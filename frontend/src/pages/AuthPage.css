@@ -1,15 +1,36 @@
 ﻿.auth-page {
+  position: relative;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 4.2rem 1rem 2rem;
   background: radial-gradient(circle at top, rgba(229, 9, 20, 0.12), transparent 25%),
     linear-gradient(180deg, #141414 0%, #0d0d0d 100%);
   color: #ffffff;
+  overflow: hidden;
+}
+
+.auth-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=1800&q=80') center/cover no-repeat;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.auth-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 8, 10, 0.42) 0%, rgba(8, 8, 10, 0.72) 55%, rgba(8, 8, 10, 0.88) 100%);
+  pointer-events: none;
 }
 
 .auth-card {
+  position: relative;
+  z-index: 1;
   width: min(560px, 100%);
   background: rgba(18, 18, 18, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -17,6 +38,7 @@
   border-radius: 28px;
   padding: 2.5rem 2.2rem;
   backdrop-filter: blur(14px);
+  text-align: center;
 }
 
 .auth-header {
@@ -103,6 +125,10 @@
 }
 
 @media (max-width: 640px) {
+  .auth-page {
+    padding: 2.3rem 1rem 1.4rem;
+  }
+
   .auth-card {
     padding: 1.8rem 1.2rem;
     border-radius: 24px;
