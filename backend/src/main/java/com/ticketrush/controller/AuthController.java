@@ -15,11 +15,7 @@ import com.ticketrush.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,10 +25,10 @@ public class AuthController {
     private UserService userService;
 
     @Autowired
-    private AuthenticationManager authenticationManager;
+    private JwtUtil jwtUtil;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private EmailService emailService;
@@ -120,22 +116,23 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        try {
-            String identifier = request.resolveIdentifier();
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(identifier, request.getPassword())
-            );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            User user = userService.findByUsernameOrEmail(identifier);
-            String subject = user != null ? user.getUsername() : authentication.getName();
-            String token = jwtUtil.generateToken(subject);
-            String role = user != null && user.getRole() != null
-                    ? userService.normalizeRole(user.getRole())
-                    : "USER";
-            return ResponseEntity.ok(new AuthResponse(token, role));
-        } catch (BadCredentialsException ex) {
+        String identifier = request.resolveIdentifier();
+        String rawPassword = request.getPassword() == null ? "" : request.getPassword();
+
+        if (identifier == null || identifier.isBlank() || rawPassword.isBlank()) {
+            return ResponseEntity.badRequest().body("Username/email and password are required");
+        }
+
+        User user = userService.findByUsernameOrEmail(identifier);
+        if (user == null || !passwordMatches(rawPassword, user.getPassword())) {
             return ResponseEntity.status(401).body("Invalid username or password");
         }
+
+        String token = jwtUtil.generateToken(user.getUsername());
+        String role = user.getRole() != null
+                ? userService.normalizeRole(user.getRole())
+                : "USER";
+        return ResponseEntity.ok(new AuthResponse(token, role));
     }
 
     @PostMapping("/password/forgot")
@@ -201,5 +198,21 @@ public class AuthController {
     @GetMapping("/password/reset")
     public ResponseEntity<?> resetPasswordGetNotSupported() {
         return ResponseEntity.status(405).body("Method not allowed. Use POST /api/auth/password/reset");
+    }
+
+    private boolean passwordMatches(String rawPassword, String storedPassword) {
+        if (storedPassword == null || storedPassword.isBlank()) {
+            return false;
+        }
+
+        try {
+            if (passwordEncoder.matches(rawPassword, storedPassword)) {
+                return true;
+            }
+        } catch (Exception ignored) {
+            // Continue to legacy plain-text comparison below.
+        }
+
+        return storedPassword.equals(rawPassword);
     }
 }

@@ -15,8 +15,8 @@ public class LoginRequest {
 
     public String resolveIdentifier() {
         if (identifier != null && !identifier.isBlank()) {
-            return identifier;
+            return identifier.trim();
         }
-        return username;
+        return username == null ? null : username.trim();
     }
 }

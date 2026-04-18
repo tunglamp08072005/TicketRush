@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Locale;
+
 @RestController
 @RequestMapping("/api/user")
 public class UserProfileController {
@@ -50,8 +54,13 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body("Phone number format is invalid");
         }
 
+        String normalizedAvatarUrl = normalizeAvatarUrl(request.getAvatarUrl());
+        if (!normalizedAvatarUrl.isEmpty() && !isAcceptedAvatarUrl(normalizedAvatarUrl)) {
+            return ResponseEntity.badRequest().body("Avatar URL must be a direct image URL, not a profile page link");
+        }
+
         user.setProfileText(trimToNull(request.getProfile()));
-        user.setAvatarUrl(trimToNull(request.getAvatarUrl()));
+        user.setAvatarUrl(normalizedAvatarUrl.isEmpty() ? null : normalizedAvatarUrl);
         user.setPhoneNumber(normalizedPhone.isEmpty() ? null : normalizedPhone);
 
         User saved = userService.saveExistingUser(user);
@@ -85,6 +94,51 @@ public class UserProfileController {
             return "";
         }
         return value.trim();
+    }
+
+    private String normalizeAvatarUrl(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim();
+    }
+
+    private boolean isAcceptedAvatarUrl(String value) {
+        try {
+            URI uri = new URI(value);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || host == null) {
+                return false;
+            }
+
+            String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
+            String normalizedHost = host.toLowerCase(Locale.ROOT);
+            if (!normalizedScheme.equals("http") && !normalizedScheme.equals("https")) {
+                return false;
+            }
+
+            String path = uri.getPath() == null ? "" : uri.getPath().toLowerCase(Locale.ROOT);
+            boolean directImagePath = path.endsWith(".jpg")
+                    || path.endsWith(".jpeg")
+                    || path.endsWith(".png")
+                    || path.endsWith(".webp")
+                    || path.endsWith(".gif")
+                    || path.endsWith(".svg")
+                    || path.endsWith(".bmp")
+                    || path.endsWith(".avif");
+
+            boolean socialProfileDomain = normalizedHost.contains("facebook.com")
+                    || normalizedHost.contains("instagram.com")
+                    || normalizedHost.contains("tiktok.com")
+                    || normalizedHost.equals("x.com")
+                    || normalizedHost.endsWith(".x.com")
+                    || normalizedHost.contains("twitter.com");
+
+            return directImagePath || !socialProfileDomain;
+        } catch (URISyntaxException ex) {
+            return false;
+        }
     }
 
     private UserProfileResponse toProfileResponse(User user) {

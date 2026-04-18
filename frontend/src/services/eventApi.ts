@@ -1,5 +1,16 @@
 export type AdminEventStatus = 'UPCOMING' | 'ON_SALE' | 'ENDED';
 
+export interface AdminEventZone {
+  id: number;
+  name: string;
+  code: string;
+  colorHex: string;
+  price: number;
+  rowCount: number;
+  seatsPerRow: number;
+  seatCount: number;
+}
+
 export interface AdminEvent {
   id: number;
   name: string;
@@ -9,6 +20,16 @@ export interface AdminEvent {
   thumbnailUrl: string;
   openSaleDate: string;
   status: AdminEventStatus;
+  totalSeatCount: number;
+  zones: AdminEventZone[];
+}
+
+export interface CreateAdminEventZonePayload {
+  name: string;
+  price: number;
+  rowCount: number;
+  seatsPerRow: number;
+  colorHex: string;
 }
 
 export interface CreateAdminEventPayload {
@@ -19,12 +40,18 @@ export interface CreateAdminEventPayload {
   thumbnailUrl: string;
   openSaleDate: string;
   status?: AdminEventStatus;
+  zones: CreateAdminEventZonePayload[];
 }
 
 const ADMIN_EVENTS_API = 'http://localhost:8080/api/admin/events';
 
-export async function fetchAdminEvents(): Promise<AdminEvent[]> {
-  const response = await fetch(ADMIN_EVENTS_API, {
+export async function fetchAdminEvents(keyword?: string): Promise<AdminEvent[]> {
+  const url = new URL(ADMIN_EVENTS_API);
+  if (keyword && keyword.trim()) {
+    url.searchParams.set('q', keyword.trim());
+  }
+
+  const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -54,6 +81,34 @@ export async function createAdminEvent(data: CreateAdminEventPayload): Promise<A
   }
 
   return await response.json();
+}
+
+export async function updateAdminEvent(id: number, data: CreateAdminEventPayload): Promise<AdminEvent> {
+  const response = await fetch(`${ADMIN_EVENTS_API}/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Cannot update event');
+  }
+
+  return await response.json();
+}
+
+export async function deleteAdminEvent(id: number): Promise<void> {
+  const response = await fetch(`${ADMIN_EVENTS_API}/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Cannot delete event');
+  }
 }
 
 export async function uploadEventPoster(file: File): Promise<string> {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface AccountProfilePanelProps {
   loading: boolean;
@@ -31,10 +31,20 @@ export default function AccountProfilePanel({
   onProfileChange,
   onSubmit,
 }: AccountProfilePanelProps) {
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const avatarPreview = useMemo(
     () => avatarUrl.trim() || 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=120&q=80',
     [avatarUrl]
   );
+  const hasCustomAvatar = avatarUrl.trim().length > 0;
+  const looksLikeSocialProfileLink = useMemo(() => {
+    const value = avatarUrl.trim().toLowerCase();
+    return value.includes('facebook.com/') || value.includes('instagram.com/') || value.includes('tiktok.com/') || value.includes('x.com/');
+  }, [avatarUrl]);
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarPreview]);
 
   if (loading) {
     return (
@@ -54,7 +64,12 @@ export default function AccountProfilePanel({
         {success && <p className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">{success}</p>}
 
         <div className="grid gap-4 md:grid-cols-[120px_1fr] md:items-center">
-          <img src={avatarPreview} alt="Avatar" className="h-24 w-24 rounded-full object-cover ring-2 ring-orange-500/40" />
+          <img
+            src={avatarLoadFailed ? 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=120&q=80' : avatarPreview}
+            alt="Avatar"
+            className="h-24 w-24 rounded-full object-cover ring-2 ring-orange-500/40"
+            onError={() => setAvatarLoadFailed(true)}
+          />
           <div>
             <label htmlFor="avatar-url" className="mb-1 block text-sm text-gray-300">
               Avatar URL
@@ -67,6 +82,12 @@ export default function AccountProfilePanel({
               className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
               placeholder="https://example.com/avatar.jpg"
             />
+            {hasCustomAvatar && avatarLoadFailed && (
+              <p className="mt-2 text-xs text-yellow-300">URL hien tai khong tai duoc anh. He thong dang dung avatar mac dinh.</p>
+            )}
+            {hasCustomAvatar && !avatarLoadFailed && looksLikeSocialProfileLink && (
+              <p className="mt-2 text-xs text-yellow-300">Nen dung link anh truc tiep, khong dung link trang ca nhan Facebook/Instagram.</p>
+            )}
           </div>
         </div>
 

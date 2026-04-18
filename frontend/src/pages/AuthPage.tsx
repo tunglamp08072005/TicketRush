@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import LoginForm from '../components/LoginForm';
 import RegisterForm from '../components/RegisterForm';
 import './AuthPage.css';
@@ -13,9 +13,10 @@ function normalizeRole(role: string | null | undefined): 'USER' | 'ADMIN' {
 export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const token = params.get('token');
     const role = params.get('role');
     const username = params.get('username');
@@ -23,6 +24,7 @@ export default function AuthPage() {
 
     if (error) {
       window.alert('Dang nhap Google that bai. Vui long thu lai.');
+      navigate('/auth', { replace: true });
       return;
     }
 
@@ -34,11 +36,11 @@ export default function AuthPage() {
 
     const normalizedRole = normalizeRole(role);
     if (normalizedRole === 'ADMIN') {
-      navigate('/admin');
+      navigate('/admin', { replace: true });
       return;
     }
-    navigate('/user');
-  }, [navigate]);
+    navigate('/user', { replace: true });
+  }, [location.search, navigate]);
 
   const handleLoginSuccess = (payload: { token: string; role: string }) => {
     const role = normalizeRole(payload.role);

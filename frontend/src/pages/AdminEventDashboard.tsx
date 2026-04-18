@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import AddEventForm from '../components/admin/AddEventForm';
-import { fetchAdminEvents, type AdminEvent } from '../services/eventApi';
+import { deleteAdminEvent, fetchAdminEvents, type AdminEvent } from '../services/eventApi';
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -31,12 +31,15 @@ export default function AdminEventDashboard() {
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
 
-  const loadEvents = async () => {
+  const loadEvents = async (keyword?: string) => {
     try {
       setLoading(true);
-      const data = await fetchAdminEvents();
+      const data = await fetchAdminEvents(keyword);
       setEvents(data);
       setError('');
     } catch (err) {
@@ -53,6 +56,32 @@ export default function AdminEventDashboard() {
   useEffect(() => {
     loadEvents();
   }, []);
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await loadEvents(searchKeyword);
+  };
+
+  const handleDeleteEvent = async (event: AdminEvent) => {
+    const confirmed = window.confirm(`Xoa su kien "${event.name}"? Hanh dong nay khong the hoan tac.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingEventId(event.id);
+      await deleteAdminEvent(event.id);
+      await loadEvents(searchKeyword);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'Khong the xoa su kien');
+      } else {
+        setError('Khong the xoa su kien');
+      }
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
 
   return (
     <div className="text-gray-100">
@@ -71,6 +100,31 @@ export default function AdminEventDashboard() {
         </button>
       </header>
 
+      <form onSubmit={handleSearchSubmit} className="mb-4 flex flex-wrap gap-3">
+        <input
+          value={searchKeyword}
+          onChange={e => setSearchKeyword(e.target.value)}
+          placeholder="Tim theo ten su kien, dia diem, mo ta..."
+          className="min-w-[280px] flex-1 rounded-xl border border-gray-700 bg-gray-950 px-4 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
+        />
+        <button
+          type="submit"
+          className="rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-100 transition hover:border-orange-500/60"
+        >
+          Tim kiem
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            setSearchKeyword('');
+            await loadEvents();
+          }}
+          className="rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-100 transition hover:border-gray-500"
+        >
+          Xoa loc
+        </button>
+      </form>
+
       {error && <p className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">{error}</p>}
 
       <section className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/70">
@@ -82,20 +136,22 @@ export default function AdminEventDashboard() {
                 <th className="px-4 py-3">Anh</th>
                 <th className="px-4 py-3">Ten su kien</th>
                 <th className="px-4 py-3">Dia diem</th>
+                <th className="px-4 py-3">So do ghe</th>
                 <th className="px-4 py-3">Ngay mo ban</th>
                 <th className="px-4 py-3">Trang thai</th>
+                <th className="px-4 py-3">Tac vu</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                     Dang tai du lieu...
                   </td>
                 </tr>
               ) : events.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Chua co su kien nao. Hay tao su kien moi.
                   </td>
                 </tr>
@@ -111,11 +167,48 @@ export default function AdminEventDashboard() {
                       <p className="line-clamp-1 text-xs text-gray-400">{event.description}</p>
                     </td>
                     <td className="px-4 py-3 text-gray-300">{event.location}</td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{event.totalSeatCount} ghe</p>
+                        <div className="flex flex-wrap gap-2">
+                          {event.zones.map(zone => (
+                            <div key={zone.id} className="rounded-xl border border-gray-700 bg-gray-950/80 px-2.5 py-2 text-xs text-gray-200">
+                              <div className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: zone.colorHex }} />
+                                <span className="font-semibold text-white">{zone.name}</span>
+                              </div>
+                              <p className="mt-1 text-gray-400">
+                                {zone.rowCount} x {zone.seatsPerRow} | {Number(zone.price).toLocaleString('vi-VN')} VND
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-300">{formatDate(event.openSaleDate)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(event.status)}`}>
                         {event.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingEvent(event)}
+                          className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-100 transition hover:border-orange-500/60"
+                        >
+                          Sua
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEvent(event)}
+                          disabled={deletingEventId === event.id}
+                          className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/10 disabled:opacity-60"
+                        >
+                          {deletingEventId === event.id ? 'Dang xoa...' : 'Xoa'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -127,12 +220,27 @@ export default function AdminEventDashboard() {
 
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
             <AddEventForm
               onCancel={() => setIsAddModalOpen(false)}
               onCreated={async () => {
                 setIsAddModalOpen(false);
-                await loadEvents();
+                await loadEvents(searchKeyword);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {editingEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
+            <AddEventForm
+              initialEvent={editingEvent}
+              onCancel={() => setEditingEvent(null)}
+              onCreated={async () => {
+                setEditingEvent(null);
+                await loadEvents(searchKeyword);
               }}
             />
           </div>

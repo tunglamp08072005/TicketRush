@@ -7,10 +7,13 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "events")
@@ -47,11 +50,19 @@ public class Event {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @OneToMany(mappedBy = "event", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    private List<EventZone> zones = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
+    }
+
+    public void addZone(EventZone zone) {
+        zones.add(zone);
+        zone.setEvent(this);
     }
 
     public Long getId() {
@@ -132,5 +143,13 @@ public class Event {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<EventZone> getZones() {
+        return zones;
+    }
+
+    public void setZones(List<EventZone> zones) {
+        this.zones = zones;
     }
 }
