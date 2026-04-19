@@ -3,8 +3,11 @@ package com.ticketrush.controller;
 import com.ticketrush.dto.CreateEventRequest;
 import com.ticketrush.dto.EventDto;
 import com.ticketrush.dto.PosterUploadResponse;
+import com.ticketrush.entity.User;
 import com.ticketrush.service.EventService;
 import com.ticketrush.service.MinioStorageService;
+import com.ticketrush.service.UserService;
+import com.ticketrush.util.JwtUtil;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -27,14 +31,30 @@ public class EventAdminController {
 
     private final EventService eventService;
     private final MinioStorageService minioStorageService;
+    private final JwtUtil jwtUtil;
+    private final UserService userService;
 
-    public EventAdminController(EventService eventService, MinioStorageService minioStorageService) {
+    public EventAdminController(
+            EventService eventService,
+            MinioStorageService minioStorageService,
+            JwtUtil jwtUtil,
+            UserService userService
+    ) {
         this.eventService = eventService;
         this.minioStorageService = minioStorageService;
+        this.jwtUtil = jwtUtil;
+        this.userService = userService;
     }
 
     @GetMapping
-    public ResponseEntity<List<EventDto>> getAllEvents(@RequestParam(value = "q", required = false) String keyword) {
+    public ResponseEntity<?> getAllEvents(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam(value = "q", required = false) String keyword
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
         if (keyword == null) {
             return ResponseEntity.ok(eventService.getAllEvents());
         }
@@ -42,7 +62,14 @@ public class EventAdminController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createEvent(@Valid @RequestBody CreateEventRequest request) {
+    public ResponseEntity<?> createEvent(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @Valid @RequestBody CreateEventRequest request
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
         try {
             EventDto created = eventService.createEvent(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -54,7 +81,15 @@ public class EventAdminController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateEvent(@PathVariable Long id, @Valid @RequestBody CreateEventRequest request) {
+    public ResponseEntity<?> updateEvent(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id,
+            @Valid @RequestBody CreateEventRequest request
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
         try {
             EventDto updated = eventService.updateEvent(id, request);
             return ResponseEntity.ok(updated);
@@ -66,7 +101,14 @@ public class EventAdminController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteEvent(@PathVariable Long id) {
+    public ResponseEntity<?> deleteEvent(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
         try {
             eventService.deleteEvent(id);
             return ResponseEntity.noContent().build();
@@ -78,7 +120,14 @@ public class EventAdminController {
     }
 
     @PostMapping("/upload-poster")
-    public ResponseEntity<?> uploadPoster(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadPoster(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
         try {
             String imageUrl = minioStorageService.uploadPoster(file);
             return ResponseEntity.ok(new PosterUploadResponse(imageUrl));
@@ -87,5 +136,43 @@ public class EventAdminController {
         } catch (Exception ex) {
             return ResponseEntity.status(500).body("Cannot upload poster: " + ex.getMessage());
         }
+    }
+
+    @PostMapping("/upload-layout-map")
+    public ResponseEntity<?> uploadLayoutMap(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
+        try {
+            String imageUrl = minioStorageService.uploadLayoutMap(file);
+            return ResponseEntity.ok(new PosterUploadResponse(imageUrl));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body("Cannot upload layout map: " + ex.getMessage());
+        }
+    }
+
+    private boolean isAdminRequest(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return false;
+        }
+
+        String token = authorizationHeader.substring(7).trim();
+        if (token.isEmpty() || !jwtUtil.isTokenValid(token)) {
+            return false;
+        }
+
+        String username = jwtUtil.extractUsername(token);
+        User user = userService.findByUsername(username);
+        if (user == null) {
+            return false;
+        }
+
+        return "ADMIN".equals(userService.normalizeRole(user.getRole()));
     }
 }

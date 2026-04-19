@@ -31,6 +31,8 @@ public class CreateZoneRequest {
     @Pattern(regexp = "^#([A-Fa-f0-9]{6})$", message = "Zone color must be a valid hex color")
     private String colorHex;
 
+    private String locationDescription;
+
     public String getName() {
         return name;
     }
@@ -69,5 +71,13 @@ public class CreateZoneRequest {
 
     public void setColorHex(String colorHex) {
         this.colorHex = colorHex;
+    }
+
+    public String getLocationDescription() {
+        return locationDescription;
+    }
+
+    public void setLocationDescription(String locationDescription) {
+        this.locationDescription = locationDescription;
     }
 }

@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -51,6 +52,12 @@ public class Seat {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private SeatStatus status = SeatStatus.AVAILABLE;
+
+    @Column(name = "locked_by_user_id")
+    private Long lockedByUserId;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
 
     public Long getId() {
         return id;
@@ -114,5 +121,21 @@ public class Seat {
 
     public void setStatus(SeatStatus status) {
         this.status = status;
+    }
+
+    public Long getLockedByUserId() {
+        return lockedByUserId;
+    }
+
+    public void setLockedByUserId(Long lockedByUserId) {
+        this.lockedByUserId = lockedByUserId;
+    }
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
     }
 }

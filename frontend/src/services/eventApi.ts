@@ -1,3 +1,5 @@
+import { getAuthSession } from '../utils/authStorage';
+
 export type AdminEventStatus = 'UPCOMING' | 'ON_SALE' | 'ENDED';
 
 export interface AdminEventZone {
@@ -5,6 +7,7 @@ export interface AdminEventZone {
   name: string;
   code: string;
   colorHex: string;
+  locationDescription: string | null;
   price: number;
   rowCount: number;
   seatsPerRow: number;
@@ -18,7 +21,10 @@ export interface AdminEvent {
   location: string;
   heroImageUrl: string;
   thumbnailUrl: string;
+  layoutMapUrl: string;
   openSaleDate: string;
+  eventStartDate: string;
+  seatHoldMinutes: number;
   status: AdminEventStatus;
   totalSeatCount: number;
   zones: AdminEventZone[];
@@ -30,6 +36,7 @@ export interface CreateAdminEventZonePayload {
   rowCount: number;
   seatsPerRow: number;
   colorHex: string;
+  locationDescription?: string;
 }
 
 export interface CreateAdminEventPayload {
@@ -38,12 +45,34 @@ export interface CreateAdminEventPayload {
   location: string;
   heroImageUrl: string;
   thumbnailUrl: string;
+  layoutMapUrl: string;
   openSaleDate: string;
+  eventStartDate: string;
+  seatHoldMinutes: number;
   status?: AdminEventStatus;
   zones: CreateAdminEventZonePayload[];
 }
 
 const ADMIN_EVENTS_API = 'http://localhost:8080/api/admin/events';
+
+function buildAdminHeaders(contentType = true): HeadersInit {
+  const { token, role } = getAuthSession();
+  if (!token) {
+    throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
+  }
+  if (role !== 'ADMIN') {
+    throw new Error('Bạn không có quyền admin để thực hiện thao tác này.');
+  }
+
+  return contentType
+    ? {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+    : {
+        Authorization: `Bearer ${token}`,
+      };
+}
 
 export async function fetchAdminEvents(keyword?: string): Promise<AdminEvent[]> {
   const url = new URL(ADMIN_EVENTS_API);
@@ -53,9 +82,7 @@ export async function fetchAdminEvents(keyword?: string): Promise<AdminEvent[]> 
 
   const response = await fetch(url.toString(), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildAdminHeaders(),
   });
 
   if (!response.ok) {
@@ -69,9 +96,7 @@ export async function fetchAdminEvents(keyword?: string): Promise<AdminEvent[]> 
 export async function createAdminEvent(data: CreateAdminEventPayload): Promise<AdminEvent> {
   const response = await fetch(ADMIN_EVENTS_API, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildAdminHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -86,9 +111,7 @@ export async function createAdminEvent(data: CreateAdminEventPayload): Promise<A
 export async function updateAdminEvent(id: number, data: CreateAdminEventPayload): Promise<AdminEvent> {
   const response = await fetch(`${ADMIN_EVENTS_API}/${id}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildAdminHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -103,6 +126,7 @@ export async function updateAdminEvent(id: number, data: CreateAdminEventPayload
 export async function deleteAdminEvent(id: number): Promise<void> {
   const response = await fetch(`${ADMIN_EVENTS_API}/${id}`, {
     method: 'DELETE',
+    headers: buildAdminHeaders(false),
   });
 
   if (!response.ok) {
@@ -117,6 +141,7 @@ export async function uploadEventPoster(file: File): Promise<string> {
 
   const response = await fetch(`${ADMIN_EVENTS_API}/upload-poster`, {
     method: 'POST',
+    headers: buildAdminHeaders(false),
     body: formData,
   });
 
@@ -129,5 +154,28 @@ export async function uploadEventPoster(file: File): Promise<string> {
   if (!data.imageUrl) {
     throw new Error('Upload response missing imageUrl');
   }
+  return data.imageUrl;
+}
+
+export async function uploadEventLayoutMap(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${ADMIN_EVENTS_API}/upload-layout-map`, {
+    method: 'POST',
+    headers: buildAdminHeaders(false),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Cannot upload layout map');
+  }
+
+  const data = (await response.json()) as { imageUrl: string };
+  if (!data.imageUrl) {
+    throw new Error('Upload response missing imageUrl');
+  }
+
   return data.imageUrl;
 }

@@ -7,6 +7,7 @@ public class EventZoneDto {
     private String name;
     private String code;
     private String colorHex;
+    private String locationDescription;
     private BigDecimal price;
     private int rowCount;
     private int seatsPerRow;
@@ -15,11 +16,12 @@ public class EventZoneDto {
     public EventZoneDto() {
     }
 
-    public EventZoneDto(Long id, String name, String code, String colorHex, BigDecimal price, int rowCount, int seatsPerRow, int seatCount) {
+    public EventZoneDto(Long id, String name, String code, String colorHex, String locationDescription, BigDecimal price, int rowCount, int seatsPerRow, int seatCount) {
         this.id = id;
         this.name = name;
         this.code = code;
         this.colorHex = colorHex;
+        this.locationDescription = locationDescription;
         this.price = price;
         this.rowCount = rowCount;
         this.seatsPerRow = seatsPerRow;
@@ -56,6 +58,14 @@ public class EventZoneDto {
 
     public void setColorHex(String colorHex) {
         this.colorHex = colorHex;
+    }
+
+    public String getLocationDescription() {
+        return locationDescription;
+    }
+
+    public void setLocationDescription(String locationDescription) {
+        this.locationDescription = locationDescription;
     }
 
     public BigDecimal getPrice() {

@@ -38,7 +38,7 @@ export default function HeroFlashSale({
             type="button"
             className="mt-5 w-full rounded-xl bg-gradient-to-r from-red-500 to-orange-500 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
           >
-            San ve ngay!
+            Săn vé ngay!
           </button>
         </div>
       </div>

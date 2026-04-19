@@ -23,18 +23,18 @@ export interface HeroCountdown {
 }
 
 export const sidebarMenuItems: SidebarMenuItem[] = [
-  { key: 'home', label: 'Trang chu' },
-  { key: 'events', label: 'Su kien' },
-  { key: 'tickets', label: 'Ve cua toi' },
-  { key: 'payments', label: 'Thanh toan' },
-  { key: 'account', label: 'Tai khoan' },
-  { key: 'support', label: 'Ho tro' },
+  { key: 'home', label: 'Trang chủ' },
+  { key: 'events', label: 'Sự kiện' },
+  { key: 'tickets', label: 'Vé của tôi' },
+  { key: 'payments', label: 'Thanh toán' },
+  { key: 'account', label: 'Tài khoản' },
+  { key: 'support', label: 'Hỗ trợ' },
 ];
 
 export const heroData = {
   title: 'CONCERT DEN VAU - CHUNG TA SE TRO THANH AI',
-  subtitle: '15.05.2026 | Nha thi dau Phu Tho',
-  countdownLabel: 'Mo ban sau:',
+  subtitle: '15.05.2026 | Nhà thi đấu Phú Thọ',
+  countdownLabel: 'Mở bán sau:',
   countdown: {
     hours: '01',
     minutes: '15',
@@ -49,8 +49,8 @@ export const myTicketsMock: TicketItem[] = [
     id: 'TR-2026-001',
     eventName: 'Rap Viet Live Concert 2026',
     eventDate: '18.05.2026 - 19:30',
-    venue: 'Nha thi dau Phu Tho',
-    seat: 'Khu A - Hang 3 - Ghe 12',
+    venue: 'Nhà thi đấu Phú Thọ',
+    seat: 'Khu A - Hàng 3 - Ghế 12',
     progress: 72,
     visualType: 'barcode',
   },
@@ -68,8 +68,8 @@ export const myTicketsMock: TicketItem[] = [
 ];
 
 export const userMock = {
-  displayName: 'Nguyen Van A',
-  memberTier: 'Fan Cung - Cap 3',
+  displayName: 'Nguyễn Văn A',
+  memberTier: 'Fan Cứng - Cấp 3',
 };
 
 interface ApiEvent {
@@ -106,7 +106,7 @@ export function mapApiEventsToHeroData(events: ApiEvent[]) {
   return {
     title: first.name,
     subtitle: `${formatDateTimeLabel(first.openSaleDate)} | ${first.location}`,
-    countdownLabel: 'Mo ban sau:',
+    countdownLabel: 'Mở bán sau:',
     countdown: {
       hours: '01',
       minutes: '15',

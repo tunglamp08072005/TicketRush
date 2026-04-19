@@ -61,8 +61,18 @@ public class SecurityConfig {
                     "/api/auth/password/reset",
                     "/api/user/profile",
                     "/api/events/featured",
+                    "/api/events",
+                    "/api/events/**",
+                    "/api/flash-sale/orders",
+                    "/api/flash-sale/orders/**",
                     "/api/admin/events",
-                    "/api/admin/events/**"
+                    "/api/admin/events/**",
+                    "/api/user/payments",
+                    "/api/user/payments/**",
+                    "/api/admin/payments",
+                    "/api/admin/payments/**",
+                    "/ws-ticket",
+                    "/ws-ticket/**"
                 ).permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/error").permitAll()

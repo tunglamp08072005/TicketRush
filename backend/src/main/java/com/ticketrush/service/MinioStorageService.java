@@ -13,10 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -37,14 +33,7 @@ public class MinioStorageService {
     @Value("${app.minio.public-base-url}")
     private String publicBaseUrl;
 
-    @Value("${app.local-storage.upload-dir:uploads}")
-    private String localUploadDir;
-
-    @Value("${app.server.public-base-url:http://localhost:8080}")
-    private String appServerPublicBaseUrl;
-
     private volatile boolean minioReady;
-    private Path localPosterDirectory;
 
     public MinioStorageService(MinioClient minioClient) {
         this.minioClient = minioClient;
@@ -52,12 +41,8 @@ public class MinioStorageService {
 
     @PostConstruct
     public void ensureBucket() {
-        initializeLocalStorage();
-
         if (!minioEnabled) {
-            log.info("MinIO is disabled by configuration (app.minio.enabled=false)");
-            minioReady = false;
-            return;
+            throw new IllegalStateException("MinIO is required but app.minio.enabled=false");
         }
 
         try {
@@ -85,13 +70,25 @@ public class MinioStorageService {
             log.info("MinIO bucket '{}' is ready", bucket);
         } catch (Exception ex) {
             minioReady = false;
-            log.warn("Cannot initialize MinIO bucket at startup. Event upload will be unavailable until MinIO is reachable.", ex);
+            throw new IllegalStateException("Cannot initialize MinIO bucket at startup. Please verify MinIO endpoint and credentials.", ex);
         }
     }
 
     public String uploadPoster(MultipartFile file) {
+        return uploadImage(file, "posters", "poster", "Poster");
+    }
+
+    public String uploadLayoutMap(MultipartFile file) {
+        return uploadImage(file, "layout-maps", "layout-map", "Layout map");
+    }
+
+    public String uploadPaymentProof(MultipartFile file) {
+        return uploadImage(file, "payment-proofs", "payment-proof", "Payment proof");
+    }
+
+    private String uploadImage(MultipartFile file, String folder, String filePrefix, String fieldLabel) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Poster file is required");
+            throw new IllegalArgumentException(fieldLabel + " file is required");
         }
 
         String contentType = file.getContentType() == null ? "application/octet-stream" : file.getContentType();
@@ -100,13 +97,13 @@ public class MinioStorageService {
         }
 
         String extension = resolveExtension(file.getOriginalFilename(), contentType);
-        String objectName = "poster-" + Instant.now().toEpochMilli() + "-" + UUID.randomUUID() + extension;
+        String objectName = filePrefix + "-" + Instant.now().toEpochMilli() + "-" + UUID.randomUUID() + extension;
 
-        if (!minioEnabled || !minioReady) {
-            return uploadPosterLocally(file, objectName);
+        if (!minioReady) {
+            throw new IllegalStateException("MinIO is not ready. Please ensure MinIO is running and accessible.");
         }
 
-        String minioObjectName = "posters/" + objectName;
+        String minioObjectName = folder + "/" + objectName;
 
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(
@@ -119,39 +116,13 @@ public class MinioStorageService {
             );
             return buildPublicUrl(minioObjectName);
         } catch (Exception ex) {
-            throw new IllegalStateException("Cannot upload poster to MinIO", ex);
-        }
-    }
-
-    private void initializeLocalStorage() {
-        try {
-            localPosterDirectory = Paths.get(localUploadDir, "posters").toAbsolutePath().normalize();
-            Files.createDirectories(localPosterDirectory);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Cannot initialize local poster storage", ex);
-        }
-    }
-
-    private String uploadPosterLocally(MultipartFile file, String fileName) {
-        try (InputStream inputStream = file.getInputStream()) {
-            Path targetFile = localPosterDirectory.resolve(fileName).normalize();
-            Files.copy(inputStream, targetFile, StandardCopyOption.REPLACE_EXISTING);
-            return buildLocalPublicUrl("posters/" + fileName);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Cannot upload poster to local storage", ex);
+            throw new IllegalStateException("Cannot upload " + fieldLabel.toLowerCase() + " to MinIO", ex);
         }
     }
 
     private String buildPublicUrl(String objectName) {
         String base = publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
         return base + "/" + bucket + "/" + objectName;
-    }
-
-    private String buildLocalPublicUrl(String relativePath) {
-        String base = appServerPublicBaseUrl.endsWith("/")
-                ? appServerPublicBaseUrl.substring(0, appServerPublicBaseUrl.length() - 1)
-                : appServerPublicBaseUrl;
-        return base + "/uploads/" + relativePath;
     }
 
     private String resolveExtension(String fileName, String contentType) {

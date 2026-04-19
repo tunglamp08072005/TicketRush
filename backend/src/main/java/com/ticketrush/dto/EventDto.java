@@ -12,7 +12,10 @@ public class EventDto {
     private String location;
     private String heroImageUrl;
     private String thumbnailUrl;
+    private String layoutMapUrl;
     private LocalDateTime openSaleDate;
+    private LocalDateTime eventStartDate;
+    private int seatHoldMinutes;
     private EventStatus status;
     private int totalSeatCount;
     private List<EventZoneDto> zones;
@@ -20,14 +23,17 @@ public class EventDto {
     public EventDto() {
     }
 
-    public EventDto(Long id, String name, String description, String location, String heroImageUrl, String thumbnailUrl, LocalDateTime openSaleDate, EventStatus status, int totalSeatCount, List<EventZoneDto> zones) {
+    public EventDto(Long id, String name, String description, String location, String heroImageUrl, String thumbnailUrl, String layoutMapUrl, LocalDateTime openSaleDate, LocalDateTime eventStartDate, int seatHoldMinutes, EventStatus status, int totalSeatCount, List<EventZoneDto> zones) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.location = location;
         this.heroImageUrl = heroImageUrl;
         this.thumbnailUrl = thumbnailUrl;
+        this.layoutMapUrl = layoutMapUrl;
         this.openSaleDate = openSaleDate;
+        this.eventStartDate = eventStartDate;
+        this.seatHoldMinutes = seatHoldMinutes;
         this.status = status;
         this.totalSeatCount = totalSeatCount;
         this.zones = zones;
@@ -81,12 +87,36 @@ public class EventDto {
         this.thumbnailUrl = thumbnailUrl;
     }
 
+    public String getLayoutMapUrl() {
+        return layoutMapUrl;
+    }
+
+    public void setLayoutMapUrl(String layoutMapUrl) {
+        this.layoutMapUrl = layoutMapUrl;
+    }
+
     public LocalDateTime getOpenSaleDate() {
         return openSaleDate;
     }
 
     public void setOpenSaleDate(LocalDateTime openSaleDate) {
         this.openSaleDate = openSaleDate;
+    }
+
+    public LocalDateTime getEventStartDate() {
+        return eventStartDate;
+    }
+
+    public void setEventStartDate(LocalDateTime eventStartDate) {
+        this.eventStartDate = eventStartDate;
+    }
+
+    public int getSeatHoldMinutes() {
+        return seatHoldMinutes;
+    }
+
+    public void setSeatHoldMinutes(int seatHoldMinutes) {
+        this.seatHoldMinutes = seatHoldMinutes;
     }
 
     public EventStatus getStatus() {

@@ -4,7 +4,7 @@ interface SidebarProps {
   menuItems: SidebarMenuItem[];
   activeMenu: DashboardMenuKey;
   onChangeMenu: (key: DashboardMenuKey) => void;
-  memberTier: string;
+  onLogout: () => void;
 }
 
 function TicketIcon() {
@@ -12,14 +12,6 @@ function TicketIcon() {
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M5 7.5A2.5 2.5 0 0 1 7.5 5h9A2.5 2.5 0 0 1 19 7.5V9a2 2 0 1 0 0 4v1.5A2.5 2.5 0 0 1 16.5 17h-9A2.5 2.5 0 0 1 5 14.5V13a2 2 0 1 0 0-4V7.5Z" />
       <path d="M12 5v12" strokeDasharray="2.4 2.4" />
-    </svg>
-  );
-}
-
-function StarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-      <path d="m12 2 2.9 5.88L21.4 9l-4.7 4.59L17.8 20 12 16.94 6.2 20l1.1-6.41L2.6 9l6.5-1.12L12 2Z" />
     </svg>
   );
 }
@@ -69,7 +61,7 @@ function getMenuIcon(key: DashboardMenuKey) {
   }
 }
 
-export default function Sidebar({ menuItems, activeMenu, onChangeMenu, memberTier }: SidebarProps) {
+export default function Sidebar({ menuItems, activeMenu, onChangeMenu, onLogout }: SidebarProps) {
   return (
     <aside className="flex h-screen w-[250px] shrink-0 flex-col border-r border-gray-800 bg-gray-950 px-4 py-6">
       <div className="mb-10 flex items-center gap-3">
@@ -103,21 +95,19 @@ export default function Sidebar({ menuItems, activeMenu, onChangeMenu, memberTie
         })}
       </nav>
 
-      <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3.5">
-        <div className="flex items-center gap-3">
-          <img
-            src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80"
-            alt="User avatar"
-            className="h-11 w-11 rounded-full object-cover ring-2 ring-orange-500/50"
-          />
-          <div>
-            <p className="text-sm font-semibold text-white">Nguoi dung VIP</p>
-            <p className="flex items-center gap-1 text-xs text-yellow-300">
-              <StarIcon />
-              {memberTier}
-            </p>
-          </div>
-        </div>
+      <div className="mt-4 border-t border-gray-800 pt-4">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+          <span>Đăng xuất</span>
+        </button>
       </div>
     </aside>
   );

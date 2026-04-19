@@ -42,6 +42,9 @@ public class EventZone {
     @Column(name = "color_hex", nullable = false, length = 20)
     private String colorHex;
 
+    @Column(name = "location_description", length = 300)
+    private String locationDescription;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
@@ -101,6 +104,14 @@ public class EventZone {
 
     public void setColorHex(String colorHex) {
         this.colorHex = colorHex;
+    }
+
+    public String getLocationDescription() {
+        return locationDescription;
+    }
+
+    public void setLocationDescription(String locationDescription) {
+        this.locationDescription = locationDescription;
     }
 
     public BigDecimal getPrice() {

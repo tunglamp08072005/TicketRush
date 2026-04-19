@@ -34,11 +34,20 @@ public class Event {
     @Column(nullable = false)
     private LocalDateTime openSaleDate;
 
+    @Column(nullable = false)
+    private LocalDateTime eventStartDate;
+
     @Column(nullable = false, length = 1000)
     private String heroImageUrl;
 
     @Column(nullable = false, length = 1000)
     private String thumbnailUrl;
+
+    @Column(nullable = false, length = 1000)
+    private String layoutMapUrl;
+
+    @Column(nullable = false)
+    private int seatHoldMinutes = 10;
 
     @Column(nullable = false)
     private boolean featured = true;
@@ -105,6 +114,14 @@ public class Event {
         this.openSaleDate = openSaleDate;
     }
 
+    public LocalDateTime getEventStartDate() {
+        return eventStartDate;
+    }
+
+    public void setEventStartDate(LocalDateTime eventStartDate) {
+        this.eventStartDate = eventStartDate;
+    }
+
     public String getHeroImageUrl() {
         return heroImageUrl;
     }
@@ -119,6 +136,22 @@ public class Event {
 
     public void setThumbnailUrl(String thumbnailUrl) {
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public String getLayoutMapUrl() {
+        return layoutMapUrl;
+    }
+
+    public void setLayoutMapUrl(String layoutMapUrl) {
+        this.layoutMapUrl = layoutMapUrl;
+    }
+
+    public int getSeatHoldMinutes() {
+        return seatHoldMinutes;
+    }
+
+    public void setSeatHoldMinutes(int seatHoldMinutes) {
+        this.seatHoldMinutes = seatHoldMinutes;
     }
 
     public boolean isFeatured() {

@@ -10,6 +10,8 @@ import com.ticketrush.entity.EventStatus;
 import com.ticketrush.entity.Seat;
 import com.ticketrush.entity.SeatStatus;
 import com.ticketrush.repository.EventRepository;
+import com.ticketrush.repository.SeatRepository;
+import com.ticketrush.dto.SeatMapSeatDto;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,12 +25,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class EventService {
 
     private final EventRepository eventRepository;
+    private final SeatRepository seatRepository;
 
     @Value("${app.events.featured-limit:6}")
     private int featuredLimit;
 
-    public EventService(EventRepository eventRepository) {
+    public EventService(EventRepository eventRepository, SeatRepository seatRepository) {
         this.eventRepository = eventRepository;
+        this.seatRepository = seatRepository;
     }
 
     @Transactional
@@ -90,13 +94,45 @@ public class EventService {
                 .toList();
     }
 
+    @Transactional
+    public List<EventDto> getUserEvents(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return getAllEvents();
+        }
+        return searchEvents(keyword);
+    }
+
+    @Transactional
+    public EventDto getEventDetail(Long eventId) {
+        Event event = eventRepository.findDetailById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        return toDto(event);
+    }
+
+    @Transactional
+    public List<SeatMapSeatDto> getSeatMap(Long eventId) {
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+
+        return seatRepository.findSeatMapByEventId(eventId).stream()
+                .map(this::toSeatMapDto)
+                .toList();
+    }
+
     private void applyEventRequest(Event event, CreateEventRequest request) {
+        if (request.getOpenSaleDate().isAfter(request.getEventStartDate())) {
+            throw new IllegalArgumentException("Open sale date must be before event start date");
+        }
+
         event.setName(request.getName().trim());
         event.setDescription(request.getDescription().trim());
         event.setLocation(request.getLocation().trim());
         event.setOpenSaleDate(request.getOpenSaleDate());
+        event.setEventStartDate(request.getEventStartDate());
         event.setHeroImageUrl(request.getHeroImageUrl().trim());
         event.setThumbnailUrl(request.getThumbnailUrl().trim());
+        event.setLayoutMapUrl(request.getLayoutMapUrl().trim());
+        event.setSeatHoldMinutes(request.getSeatHoldMinutes() == null ? 10 : request.getSeatHoldMinutes());
         event.setFeatured(request.getFeatured() == null || request.getFeatured());
         event.setStatus(request.getStatus() == null ? EventStatus.UPCOMING : request.getStatus());
 
@@ -111,6 +147,7 @@ public class EventService {
         zone.setName(normalizedName);
         zone.setCode(generateZoneCode(normalizedName, displayOrder));
         zone.setColorHex(request.getColorHex().trim().toUpperCase(Locale.ROOT));
+        zone.setLocationDescription(normalizeLocationDescription(request.getLocationDescription()));
         zone.setPrice(request.getPrice());
         zone.setRowCount(request.getRowCount());
         zone.setSeatsPerRow(request.getSeatsPerRow());
@@ -150,6 +187,15 @@ public class EventService {
         return normalized + "_" + (displayOrder + 1);
     }
 
+    private String normalizeLocationDescription(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private EventDto toDto(Event event) {
         List<EventZoneDto> zoneDtos = event.getZones().stream()
                 .sorted((left, right) -> Integer.compare(left.getDisplayOrder(), right.getDisplayOrder()))
@@ -158,6 +204,7 @@ public class EventService {
                         zone.getName(),
                         zone.getCode(),
                         zone.getColorHex(),
+                    zone.getLocationDescription(),
                         zone.getPrice(),
                         zone.getRowCount(),
                         zone.getSeatsPerRow(),
@@ -172,10 +219,29 @@ public class EventService {
                 event.getLocation(),
                 event.getHeroImageUrl(),
                 event.getThumbnailUrl(),
+                event.getLayoutMapUrl(),
                 event.getOpenSaleDate(),
+                event.getEventStartDate(),
+                event.getSeatHoldMinutes(),
                 event.getStatus(),
                 zoneDtos.stream().mapToInt(EventZoneDto::getSeatCount).sum(),
                 zoneDtos
+        );
+    }
+
+    private SeatMapSeatDto toSeatMapDto(Seat seat) {
+        EventZone zone = seat.getZone();
+        return new SeatMapSeatDto(
+                seat.getId(),
+                zone.getId(),
+                zone.getName(),
+                zone.getCode(),
+                zone.getColorHex(),
+                seat.getRowLabel(),
+                seat.getSeatNumber(),
+                seat.getSeatCode(),
+                seat.getPrice(),
+                seat.getStatus()
         );
     }
 }

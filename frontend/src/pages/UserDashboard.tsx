@@ -6,6 +6,7 @@ import DashboardHeader from '../components/dashboard/DashboardHeader';
 import HeroFlashSale from '../components/dashboard/HeroFlashSale';
 import MyTicketsSection from '../components/dashboard/MyTicketsSection';
 import AccountProfilePanel from '../components/dashboard/AccountProfilePanel';
+import EventExplorerSection from '../components/dashboard/EventExplorerSection';
 import {
   heroData,
   mapApiEventsToHeroData,
@@ -46,9 +47,9 @@ export default function UserDashboard() {
         setHeroSectionData(heroData);
         setTicketsData(myTicketsMock);
         if (err instanceof Error) {
-          setEventsError(err.message || 'Khong the tai su kien tu server');
+          setEventsError(err.message || 'Không thể tải sự kiện từ server');
         } else {
-          setEventsError('Khong the tai su kien tu server');
+          setEventsError('Không thể tải sự kiện từ server');
         }
       }
     };
@@ -65,9 +66,9 @@ export default function UserDashboard() {
         setError('');
       } catch (err) {
         if (err instanceof Error) {
-          setError(err.message || 'Khong the tai ho so');
+          setError(err.message || 'Không thể tải hồ sơ');
         } else {
-          setError('Khong the tai ho so');
+          setError('Không thể tải hồ sơ');
         }
       } finally {
         setLoading(false);
@@ -87,7 +88,7 @@ export default function UserDashboard() {
     e.preventDefault();
 
     if (phoneNumber.trim() && !/^[0-9+\-()\s]{8,20}$/.test(phoneNumber.trim())) {
-      setError('So dien thoai khong hop le');
+      setError('Số điện thoại không hợp lệ');
       setSuccess('');
       return;
     }
@@ -106,12 +107,12 @@ export default function UserDashboard() {
       setAvatarUrl(updated.avatarUrl || '');
       setPhoneNumber(updated.phoneNumber || '');
       setError('');
-      setSuccess('Cap nhat ho so thanh cong');
+      setSuccess('Cập nhật hồ sơ thành công');
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message || 'Khong the cap nhat ho so');
+        setError(err.message || 'Không thể cập nhật hồ sơ');
       } else {
-        setError('Khong the cap nhat ho so');
+        setError('Không thể cập nhật hồ sơ');
       }
       setSuccess('');
     } finally {
@@ -140,11 +141,15 @@ export default function UserDashboard() {
       );
     }
 
+    if (activeMenu === 'events') {
+      return <EventExplorerSection />;
+    }
+
     return (
       <>
         {eventsError && (
           <div className="mb-4 rounded-xl border border-yellow-500/35 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-200">
-            {eventsError}. Dang hien thi du lieu demo.
+            {eventsError}. Đang hiển thị dữ liệu demo.
           </div>
         )}
         <HeroFlashSale
@@ -161,7 +166,7 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-950 text-white">
+    <div className="flex min-h-screen bg-gray-950 font-['Inter'] text-white">
       <Sidebar
         menuItems={sidebarMenuItems}
         activeMenu={activeMenu}
@@ -172,33 +177,30 @@ export default function UserDashboard() {
             setSuccess('');
           }
         }}
-        memberTier={userMock.memberTier}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-        <DashboardHeader displayName={userMock.displayName} />
+        <DashboardHeader
+          displayName={userMock.displayName}
+          notificationCount={0}
+          onOpenProfile={() => {
+            setActiveMenu('account');
+            setError('');
+            setSuccess('');
+          }}
+          onOpenOrders={() => {
+            setActiveMenu('tickets');
+            setError('');
+            setSuccess('');
+          }}
+          onLogout={handleLogout}
+        />
 
-        <div className="mb-6 flex items-center justify-between rounded-2xl border border-gray-800 bg-gray-900/55 px-5 py-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-gray-500">TicketRush Dashboard</p>
-            <p className="mt-1 text-sm text-gray-300">
-              Xin chao <span className="font-semibold text-white">{username}</span>, chuc ban san duoc ve dep hom nay.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-xl border border-gray-700 bg-gray-900 px-4 py-2 text-sm text-gray-200 transition hover:border-red-500/70 hover:text-white"
-          >
-            Dang xuat
-          </button>
-        </div>
-
-        {activeMenu !== 'home' && activeMenu !== 'account' && (
+        {activeMenu !== 'home' && activeMenu !== 'account' && activeMenu !== 'events' && (
           <section className="mb-6 rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 p-8 text-center">
             <p className="text-lg font-semibold text-white">{sidebarMenuItems.find(item => item.key === activeMenu)?.label}</p>
-            <p className="mt-2 text-sm text-gray-400">Tinh nang dang duoc cap nhat. Ban co the chuyen sang Trang chu hoac Tai khoan.</p>
+            <p className="mt-2 text-sm text-gray-400">Tính năng đang được cập nhật. Bạn có thể chuyển sang Trang chủ hoặc Tài khoản.</p>
             <button
               type="button"
               onClick={() => {
@@ -208,12 +210,12 @@ export default function UserDashboard() {
               }}
               className="mt-5 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 px-5 py-2.5 text-sm font-semibold text-white"
             >
-              Quay lai Trang chu
+              Quay lại Trang chủ
             </button>
           </section>
         )}
 
-        {(activeMenu === 'home' || activeMenu === 'account') && renderMainContent()}
+        {(activeMenu === 'home' || activeMenu === 'account' || activeMenu === 'events') && renderMainContent()}
       </main>
     </div>
   );

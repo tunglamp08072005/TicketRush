@@ -3,6 +3,8 @@ package com.ticketrush.dto;
 import com.ticketrush.entity.EventStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -26,8 +28,19 @@ public class CreateEventRequest {
     @NotBlank(message = "Thumbnail URL is required")
     private String thumbnailUrl;
 
+    @NotBlank(message = "Layout map URL is required")
+    private String layoutMapUrl;
+
     @NotNull(message = "Open sale date is required")
     private LocalDateTime openSaleDate;
+
+    @NotNull(message = "Event start date is required")
+    private LocalDateTime eventStartDate;
+
+    @NotNull(message = "Seat hold duration is required")
+    @Min(value = 1, message = "Seat hold duration must be at least 1 minute")
+    @Max(value = 120, message = "Seat hold duration must not exceed 120 minutes")
+    private Integer seatHoldMinutes;
 
     @NotNull(message = "At least one zone is required")
     @Size(min = 1, message = "At least one zone is required")
@@ -69,6 +82,14 @@ public class CreateEventRequest {
         this.openSaleDate = openSaleDate;
     }
 
+    public LocalDateTime getEventStartDate() {
+        return eventStartDate;
+    }
+
+    public void setEventStartDate(LocalDateTime eventStartDate) {
+        this.eventStartDate = eventStartDate;
+    }
+
     public List<CreateZoneRequest> getZones() {
         return zones;
     }
@@ -91,6 +112,22 @@ public class CreateEventRequest {
 
     public void setThumbnailUrl(String thumbnailUrl) {
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public String getLayoutMapUrl() {
+        return layoutMapUrl;
+    }
+
+    public void setLayoutMapUrl(String layoutMapUrl) {
+        this.layoutMapUrl = layoutMapUrl;
+    }
+
+    public Integer getSeatHoldMinutes() {
+        return seatHoldMinutes;
+    }
+
+    public void setSeatHoldMinutes(Integer seatHoldMinutes) {
+        this.seatHoldMinutes = seatHoldMinutes;
     }
 
     public Boolean getFeatured() {

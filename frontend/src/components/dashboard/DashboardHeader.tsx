@@ -1,5 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
+
 interface DashboardHeaderProps {
   displayName: string;
+  notificationCount?: number;
+  onOpenProfile: () => void;
+  onOpenOrders: () => void;
+  onLogout: () => void;
 }
 
 function BellIcon() {
@@ -28,7 +34,27 @@ function DropdownIcon() {
   );
 }
 
-export default function DashboardHeader({ displayName }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  displayName,
+  notificationCount = 0,
+  onOpenProfile,
+  onOpenOrders,
+  onLogout,
+}: DashboardHeaderProps) {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   return (
     <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="relative min-w-[280px] max-w-[520px] flex-1">
@@ -37,7 +63,7 @@ export default function DashboardHeader({ displayName }: DashboardHeaderProps) {
         </span>
         <input
           type="text"
-          placeholder="Tim su kien, nghe si, dia diem..."
+          placeholder="Tìm sự kiện, nghệ sĩ, địa điểm..."
           className="w-full rounded-xl border border-gray-800 bg-gray-900/70 py-3 pl-11 pr-4 text-sm text-gray-100 outline-none placeholder:text-gray-500 focus:border-orange-500/60"
         />
       </div>
@@ -48,25 +74,65 @@ export default function DashboardHeader({ displayName }: DashboardHeaderProps) {
           className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-800 bg-gray-900 text-gray-200 transition hover:border-gray-700 hover:text-white"
         >
           <BellIcon />
-          <span className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            2
-          </span>
+          {notificationCount > 0 && (
+            <span className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {notificationCount}
+            </span>
+          )}
         </button>
 
-        <button
-          type="button"
-          className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-2 text-left transition hover:border-gray-700"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=120&q=80"
-            alt="User"
-            className="h-8 w-8 rounded-full object-cover"
-          />
-          <span className="text-sm font-semibold text-white">{displayName}</span>
-          <span className="text-gray-400">
-            <DropdownIcon />
-          </span>
-        </button>
+        <div ref={profileMenuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setIsProfileMenuOpen(prev => !prev)}
+            className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-2 text-left transition hover:border-gray-700"
+          >
+            <img
+              src="https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=120&q=80"
+              alt="User"
+              className="h-8 w-8 rounded-full object-cover"
+            />
+            <span className="text-sm font-semibold text-white">{displayName}</span>
+            <span className="text-gray-400">
+              <DropdownIcon />
+            </span>
+          </button>
+
+          {isProfileMenuOpen && (
+            <div className="absolute right-0 z-30 mt-2 w-52 rounded-xl border border-gray-800 bg-gray-900 p-1.5 shadow-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  onOpenProfile();
+                }}
+                className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-100 transition hover:bg-gray-800"
+              >
+                Thông tin cá nhân
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  onOpenOrders();
+                }}
+                className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-100 transition hover:bg-gray-800"
+              >
+                Đơn hàng của tôi
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  onLogout();
+                }}
+                className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/15"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

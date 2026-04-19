@@ -9,12 +9,12 @@ export default function MyTicketsSection({ tickets }: MyTicketsSectionProps) {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Ve cua toi ({tickets.length} sap toi)</h2>
+        <h2 className="text-2xl font-bold text-white">Vé của tôi ({tickets.length} sắp tới)</h2>
         <button
           type="button"
           className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-orange-500/70 hover:text-white"
         >
-          Xem tat ca
+          Xem tất cả
         </button>
       </div>
 

@@ -49,15 +49,15 @@ export default function AccountProfilePanel({
   if (loading) {
     return (
       <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6 text-gray-200">
-        Dang tai thong tin tai khoan...
+        Đang tải thông tin tài khoản...
       </section>
     );
   }
 
   return (
     <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
-      <h2 className="mb-1 text-2xl font-bold text-white">Tai khoan</h2>
-      <p className="mb-5 text-sm text-gray-400">Cap nhat ho so, avatar va so dien thoai cua ban.</p>
+      <h2 className="mb-1 text-2xl font-bold text-white">Tài khoản</h2>
+      <p className="mb-5 text-sm text-gray-400">Cập nhật hồ sơ, avatar và số điện thoại của bạn.</p>
 
       <form className="space-y-4" onSubmit={onSubmit}>
         {error && <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
@@ -83,10 +83,10 @@ export default function AccountProfilePanel({
               placeholder="https://example.com/avatar.jpg"
             />
             {hasCustomAvatar && avatarLoadFailed && (
-              <p className="mt-2 text-xs text-yellow-300">URL hien tai khong tai duoc anh. He thong dang dung avatar mac dinh.</p>
+              <p className="mt-2 text-xs text-yellow-300">URL hiện tại không tải được ảnh. Hệ thống đang dùng avatar mặc định.</p>
             )}
             {hasCustomAvatar && !avatarLoadFailed && looksLikeSocialProfileLink && (
-              <p className="mt-2 text-xs text-yellow-300">Nen dung link anh truc tiep, khong dung link trang ca nhan Facebook/Instagram.</p>
+              <p className="mt-2 text-xs text-yellow-300">Nên dùng link ảnh trực tiếp, không dùng link trang cá nhân Facebook/Instagram.</p>
             )}
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function AccountProfilePanel({
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="username" className="mb-1 block text-sm text-gray-300">
-              Ten dang nhap
+              Tên đăng nhập
             </label>
             <input
               id="username"
@@ -119,7 +119,7 @@ export default function AccountProfilePanel({
 
         <div>
           <label htmlFor="phone" className="mb-1 block text-sm text-gray-300">
-            So dien thoai
+            Số điện thoại
           </label>
           <input
             id="phone"
@@ -133,7 +133,7 @@ export default function AccountProfilePanel({
 
         <div>
           <label htmlFor="profile" className="mb-1 block text-sm text-gray-300">
-            Ho so
+            Hồ sơ
           </label>
           <textarea
             id="profile"
@@ -142,7 +142,7 @@ export default function AccountProfilePanel({
             onChange={e => onProfileChange(e.target.value)}
             disabled={saving}
             className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
-            placeholder="Gioi thieu ngan ve gu am nhac cua ban"
+            placeholder="Giới thiệu ngắn về gu âm nhạc của bạn"
           />
         </div>
 
@@ -151,7 +151,7 @@ export default function AccountProfilePanel({
           disabled={saving}
           className="w-full rounded-xl bg-gradient-to-r from-red-500 to-orange-500 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70"
         >
-          {saving ? 'Dang luu...' : 'Cap nhat tai khoan'}
+          {saving ? 'Đang lưu...' : 'Cập nhật tài khoản'}
         </button>
       </form>
     </section>
