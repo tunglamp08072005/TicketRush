@@ -13,7 +13,7 @@ export interface UserProfile {
 
 export interface UpdateUserProfilePayload {
   profile: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   phoneNumber: string;
 }
 
@@ -53,6 +53,31 @@ export async function updateMyProfile(payload: UpdateUserProfilePayload): Promis
   if (!res.ok) {
     const message = await res.text();
     throw new Error(message || 'Không thể cập nhật hồ sơ');
+  }
+
+  return await res.json();
+}
+
+export async function uploadMyAvatar(file: File): Promise<UserProfile> {
+  const { token } = getAuthSession();
+  if (!token) {
+    throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_URL}/avatar`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || 'Không thể tải ảnh đại diện');
   }
 
   return await res.json();

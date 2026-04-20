@@ -3,15 +3,19 @@ package com.ticketrush.controller;
 import com.ticketrush.dto.UpdateProfileRequest;
 import com.ticketrush.dto.UserProfileResponse;
 import com.ticketrush.entity.User;
+import com.ticketrush.service.MinioStorageService;
 import com.ticketrush.service.UserService;
 import com.ticketrush.util.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -23,10 +27,12 @@ public class UserProfileController {
 
     private final UserService userService;
     private final JwtUtil jwtUtil;
+    private final MinioStorageService minioStorageService;
 
-    public UserProfileController(UserService userService, JwtUtil jwtUtil) {
+    public UserProfileController(UserService userService, JwtUtil jwtUtil, MinioStorageService minioStorageService) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
+        this.minioStorageService = minioStorageService;
     }
 
     @GetMapping("/profile")
@@ -54,17 +60,41 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body("Phone number format is invalid");
         }
 
-        String normalizedAvatarUrl = normalizeAvatarUrl(request.getAvatarUrl());
-        if (!normalizedAvatarUrl.isEmpty() && !isAcceptedAvatarUrl(normalizedAvatarUrl)) {
-            return ResponseEntity.badRequest().body("Avatar URL must be a direct image URL, not a profile page link");
+        if (request.getAvatarUrl() != null) {
+            String normalizedAvatarUrl = normalizeAvatarUrl(request.getAvatarUrl());
+            if (!normalizedAvatarUrl.isEmpty() && !isAcceptedAvatarUrl(normalizedAvatarUrl)) {
+                return ResponseEntity.badRequest().body("Avatar URL must be a direct image URL, not a profile page link");
+            }
+            user.setAvatarUrl(normalizedAvatarUrl.isEmpty() ? null : normalizedAvatarUrl);
         }
 
         user.setProfileText(trimToNull(request.getProfile()));
-        user.setAvatarUrl(normalizedAvatarUrl.isEmpty() ? null : normalizedAvatarUrl);
         user.setPhoneNumber(normalizedPhone.isEmpty() ? null : normalizedPhone);
 
         User saved = userService.saveExistingUser(user);
         return ResponseEntity.ok(toProfileResponse(saved));
+    }
+
+    @PostMapping("/profile/avatar")
+    public ResponseEntity<?> uploadAvatar(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam("file") MultipartFile file
+    ) {
+        User user = resolveUserFromAuthorizationHeader(authorizationHeader);
+        if (user == null) {
+            return ResponseEntity.status(401).body("Invalid or missing token");
+        }
+
+        try {
+            String avatarUrl = minioStorageService.uploadAvatar(file);
+            user.setAvatarUrl(avatarUrl);
+            User saved = userService.saveExistingUser(user);
+            return ResponseEntity.ok(toProfileResponse(saved));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body("Cannot upload avatar: " + ex.getMessage());
+        }
     }
 
     private User resolveUserFromAuthorizationHeader(String authorizationHeader) {

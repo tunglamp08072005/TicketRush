@@ -7,10 +7,18 @@ export interface SidebarMenuItem {
 
 export interface TicketItem {
   id: string;
+  ticketCode?: string;
   eventName: string;
   eventDate: string;
   venue: string;
   seat: string;
+  ticketTier?: string;
+  buyerName?: string;
+  buyerEmail?: string;
+  buyerPhone?: string;
+  qrValue?: string;
+  checkInInstruction?: string;
+  terms?: string[];
   progress: number;
   visualType: 'barcode' | 'thumbnail';
   imageUrl?: string;
@@ -47,19 +55,35 @@ export const heroData = {
 export const myTicketsMock: TicketItem[] = [
   {
     id: 'TR-2026-001',
+    ticketCode: 'TR-2026-001',
     eventName: 'Rap Viet Live Concert 2026',
     eventDate: '18.05.2026 - 19:30',
     venue: 'Nhà thi đấu Phú Thọ',
     seat: 'Khu A - Hàng 3 - Ghế 12',
+    ticketTier: 'VIP',
+    buyerName: 'Nguyễn Văn A',
+    buyerEmail: 'nguyenvana@example.com',
+    buyerPhone: '0909 000 111',
+    qrValue: 'TR-2026-001|RAPVIET|A3-12',
+    checkInInstruction: 'Vui lòng có mặt trước giờ diễn 30 phút để check-in.',
+    terms: ['Không hoàn/hủy vé sau khi đã xác nhận thanh toán.', 'Không mang chất cấm hoặc vật sắc nhọn vào sự kiện.'],
     progress: 72,
     visualType: 'barcode',
   },
   {
     id: 'TR-2026-002',
+    ticketCode: 'TR-2026-002',
     eventName: 'SpaceSpeakers Galaxy Night',
     eventDate: '01.06.2026 - 20:00',
     venue: 'Quan 7 Exhibition Center',
     seat: 'VIP Lounge - Ban 05',
+    ticketTier: 'Standard',
+    buyerName: 'Nguyễn Văn A',
+    buyerEmail: 'nguyenvana@example.com',
+    buyerPhone: '0909 000 111',
+    qrValue: 'TR-2026-002|SPACESPEAKERS|VIP-05',
+    checkInInstruction: 'Đến sớm để làm thủ tục kiểm tra an ninh và xếp hàng vào cổng.',
+    terms: ['Không quay phim chuyên nghiệp khi chưa có sự cho phép.', 'Giữ vé trên app hoặc ảnh QR để quét tại cổng.'],
     progress: 46,
     visualType: 'thumbnail',
     imageUrl:
@@ -123,10 +147,15 @@ export function mapApiEventsToTicketCards(events: ApiEvent[]): TicketItem[] {
 
   return events.slice(0, 2).map((event, index) => ({
     id: `EV-${event.id}`,
+    ticketCode: `EV-${event.id}`,
     eventName: event.name,
     eventDate: formatDateTimeLabel(event.openSaleDate),
     venue: event.location,
     seat: index === 0 ? 'Khu A - Hang 3 - Ghe 12' : 'VIP Lounge - Ban 05',
+    ticketTier: index === 0 ? 'VIP' : 'Standard',
+    qrValue: `EV-${event.id}|${event.name}|${event.status}`,
+    checkInInstruction: 'Vui lòng có mặt trước sự kiện ít nhất 30 phút.',
+    terms: ['Vé đã mua không hoàn/hủy.', 'Không mang vật dụng cấm vào khu vực tổ chức.'],
     progress: event.status === 'ENDED' ? 100 : event.status === 'ON_SALE' ? 68 : 35,
     visualType: 'thumbnail' as const,
     imageUrl: event.thumbnailUrl || event.heroImageUrl,

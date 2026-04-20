@@ -8,6 +8,7 @@ import {
   type UserEventDetail,
 } from '../../services/eventService';
 import { checkoutPayment } from '../../services/paymentService';
+import { getMyProfile } from '../../services/userProfileService';
 
 type BookingStep = 1 | 2 | 3;
 
@@ -84,6 +85,7 @@ export default function EventExplorerSection() {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState('');
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [profileRequiredMessage, setProfileRequiredMessage] = useState('');
 
   const fetchEvents = async (search?: string) => {
     try {
@@ -118,6 +120,31 @@ export default function EventExplorerSection() {
 
   useEffect(() => {
     fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    const loadBuyerProfileStatus = async () => {
+      try {
+        const profile = await getMyProfile();
+        const missing: string[] = [];
+        if (!profile.profile || !profile.profile.trim()) {
+          missing.push('họ và tên');
+        }
+        if (!profile.phoneNumber || !profile.phoneNumber.trim()) {
+          missing.push('số điện thoại');
+        }
+
+        if (missing.length > 0) {
+          setProfileRequiredMessage(`Để mua vé, vui lòng cập nhật đầy đủ: ${missing.join(', ')} trong mục Tài khoản.`);
+        } else {
+          setProfileRequiredMessage('');
+        }
+      } catch {
+        setProfileRequiredMessage('Không thể kiểm tra hồ sơ người dùng. Vui lòng mở mục Tài khoản để cập nhật thông tin trước khi mua vé.');
+      }
+    };
+
+    loadBuyerProfileStatus();
   }, []);
 
   useEffect(() => {
@@ -213,6 +240,11 @@ export default function EventExplorerSection() {
 
   const handleCheckoutPayment = async () => {
     if (!selectedEvent || selectedSeatIds.length === 0) {
+      return;
+    }
+
+    if (profileRequiredMessage) {
+      setError(profileRequiredMessage);
       return;
     }
 
@@ -566,6 +598,12 @@ export default function EventExplorerSection() {
                 )}
               </div>
 
+              {profileRequiredMessage && (
+                <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-100">
+                  {profileRequiredMessage}
+                </div>
+              )}
+
               {paymentMessage && (
                 <p className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
                   {paymentMessage}
@@ -573,9 +611,9 @@ export default function EventExplorerSection() {
               )}
               <button
                 type="button"
-                disabled={submittingPayment || selectedSeatIds.length === 0}
+                disabled={submittingPayment || selectedSeatIds.length === 0 || Boolean(profileRequiredMessage)}
                 onClick={handleCheckoutPayment}
-                className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white"
+                className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submittingPayment ? 'Đang gửi thanh toán...' : 'Tiến hành thanh toán'}
               </button>

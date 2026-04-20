@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 interface DashboardHeaderProps {
   displayName: string;
+  avatarUrl?: string;
   notificationCount?: number;
   onOpenProfile: () => void;
   onOpenOrders: () => void;
@@ -36,6 +37,7 @@ function DropdownIcon() {
 
 export default function DashboardHeader({
   displayName,
+  avatarUrl,
   notificationCount = 0,
   onOpenProfile,
   onOpenOrders,
@@ -87,11 +89,13 @@ export default function DashboardHeader({
             onClick={() => setIsProfileMenuOpen(prev => !prev)}
             className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-2 text-left transition hover:border-gray-700"
           >
-            <img
-              src="https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=120&q=80"
-              alt="User"
-              className="h-8 w-8 rounded-full object-cover"
-            />
+            {avatarUrl && avatarUrl.trim() ? (
+              <img src={avatarUrl} alt={displayName} className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-700 bg-gray-800 text-xs font-bold text-gray-200">
+                {displayName.trim().charAt(0).toUpperCase() || 'U'}
+              </span>
+            )}
             <span className="text-sm font-semibold text-white">{displayName}</span>
             <span className="text-gray-400">
               <DropdownIcon />
@@ -118,7 +122,7 @@ export default function DashboardHeader({
                 }}
                 className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-100 transition hover:bg-gray-800"
               >
-                Đơn hàng của tôi
+                Vé của tôi
               </button>
               <button
                 type="button"

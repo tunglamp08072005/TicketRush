@@ -3,14 +3,15 @@ import { useEffect, useMemo, useState } from 'react';
 interface AccountProfilePanelProps {
   loading: boolean;
   saving: boolean;
+  avatarUploading: boolean;
   error: string;
   success: string;
-  username: string;
   email: string;
   profile: string;
   avatarUrl: string;
+  selectedAvatarFileName: string;
   phoneNumber: string;
-  onAvatarUrlChange: (value: string) => void;
+  onAvatarFileChange: (file: File | null) => void;
   onPhoneNumberChange: (value: string) => void;
   onProfileChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -19,28 +20,21 @@ interface AccountProfilePanelProps {
 export default function AccountProfilePanel({
   loading,
   saving,
+  avatarUploading,
   error,
   success,
-  username,
   email,
   profile,
   avatarUrl,
+  selectedAvatarFileName,
   phoneNumber,
-  onAvatarUrlChange,
+  onAvatarFileChange,
   onPhoneNumberChange,
   onProfileChange,
   onSubmit,
 }: AccountProfilePanelProps) {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-  const avatarPreview = useMemo(
-    () => avatarUrl.trim() || 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=120&q=80',
-    [avatarUrl]
-  );
-  const hasCustomAvatar = avatarUrl.trim().length > 0;
-  const looksLikeSocialProfileLink = useMemo(() => {
-    const value = avatarUrl.trim().toLowerCase();
-    return value.includes('facebook.com/') || value.includes('instagram.com/') || value.includes('tiktok.com/') || value.includes('x.com/');
-  }, [avatarUrl]);
+  const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
 
   useEffect(() => {
     setAvatarLoadFailed(false);
@@ -64,57 +58,61 @@ export default function AccountProfilePanel({
         {success && <p className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">{success}</p>}
 
         <div className="grid gap-4 md:grid-cols-[120px_1fr] md:items-center">
-          <img
-            src={avatarLoadFailed ? 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=120&q=80' : avatarPreview}
-            alt="Avatar"
-            className="h-24 w-24 rounded-full object-cover ring-2 ring-orange-500/40"
-            onError={() => setAvatarLoadFailed(true)}
-          />
+          {avatarPreview && !avatarLoadFailed ? (
+            <img
+              src={avatarPreview}
+              alt="Avatar"
+              className="h-24 w-24 rounded-full object-cover ring-2 ring-orange-500/40"
+              onError={() => setAvatarLoadFailed(true)}
+            />
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-gray-600 bg-gray-950 text-center text-[11px] text-gray-400">
+              Chưa có avatar
+            </div>
+          )}
           <div>
-            <label htmlFor="avatar-url" className="mb-1 block text-sm text-gray-300">
-              Avatar URL
+            <label htmlFor="avatar-file" className="mb-1 block text-sm text-gray-300">
+              Ảnh đại diện
             </label>
             <input
-              id="avatar-url"
-              value={avatarUrl}
-              onChange={e => onAvatarUrlChange(e.target.value)}
-              disabled={saving}
-              className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
-              placeholder="https://example.com/avatar.jpg"
+              id="avatar-file"
+              type="file"
+              accept="image/*"
+              onChange={e => onAvatarFileChange(e.target.files?.[0] ?? null)}
+              disabled={saving || avatarUploading}
+              className="block w-full cursor-pointer rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
             />
-            {hasCustomAvatar && avatarLoadFailed && (
-              <p className="mt-2 text-xs text-yellow-300">URL hiện tại không tải được ảnh. Hệ thống đang dùng avatar mặc định.</p>
-            )}
-            {hasCustomAvatar && !avatarLoadFailed && looksLikeSocialProfileLink && (
-              <p className="mt-2 text-xs text-yellow-300">Nên dùng link ảnh trực tiếp, không dùng link trang cá nhân Facebook/Instagram.</p>
-            )}
+            <p className="mt-2 text-xs text-gray-400">
+              {selectedAvatarFileName ? `Đã chọn: ${selectedAvatarFileName}` : 'Chọn ảnh từ máy tính để cập nhật avatar.'}
+            </p>
+            {avatarUploading && <p className="mt-1 text-xs text-orange-300">Đang tải ảnh đại diện...</p>}
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label htmlFor="username" className="mb-1 block text-sm text-gray-300">
-              Tên đăng nhập
-            </label>
-            <input
-              id="username"
-              value={username}
-              disabled
-              className="w-full rounded-xl border border-gray-800 bg-gray-800 px-3 py-2 text-sm text-gray-300"
-            />
-          </div>
+        <div>
+          <label htmlFor="profile" className="mb-1 block text-sm text-gray-300">
+            Họ và tên
+          </label>
+          <input
+            id="profile"
+            value={profile}
+            onChange={e => onProfileChange(e.target.value)}
+            disabled={saving}
+            className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
+            placeholder="Ví dụ: Nguyễn Văn A"
+          />
+        </div>
 
-          <div>
-            <label htmlFor="email" className="mb-1 block text-sm text-gray-300">
-              Email
-            </label>
-            <input
-              id="email"
-              value={email}
-              disabled
-              className="w-full rounded-xl border border-gray-800 bg-gray-800 px-3 py-2 text-sm text-gray-300"
-            />
-          </div>
+        <div>
+          <label htmlFor="email" className="mb-1 block text-sm text-gray-300">
+            Email
+          </label>
+          <input
+            id="email"
+            value={email}
+            disabled
+            className="w-full rounded-xl border border-gray-800 bg-gray-800 px-3 py-2 text-sm text-gray-300"
+          />
         </div>
 
         <div>
@@ -128,21 +126,6 @@ export default function AccountProfilePanel({
             disabled={saving}
             className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
             placeholder="Vi du: 0912345678"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="profile" className="mb-1 block text-sm text-gray-300">
-            Hồ sơ
-          </label>
-          <textarea
-            id="profile"
-            rows={4}
-            value={profile}
-            onChange={e => onProfileChange(e.target.value)}
-            disabled={saving}
-            className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
-            placeholder="Giới thiệu ngắn về gu âm nhạc của bạn"
           />
         </div>
 

@@ -86,6 +86,10 @@ public class MinioStorageService {
         return uploadImage(file, "payment-proofs", "payment-proof", "Payment proof");
     }
 
+    public String uploadAvatar(MultipartFile file) {
+        return uploadImage(file, "avatars", "avatar", "Avatar");
+    }
+
     private String uploadImage(MultipartFile file, String folder, String filePrefix, String fieldLabel) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException(fieldLabel + " file is required");

@@ -19,9 +19,13 @@ export default function MyTicketsSection({ tickets }: MyTicketsSectionProps) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {tickets.map(ticket => (
-          <TicketCard key={ticket.id} ticket={ticket} />
-        ))}
+        {tickets.length === 0 ? (
+          <div className="md:col-span-2 rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 px-4 py-8 text-center text-sm text-gray-300">
+            Chưa có vé điện tử nào được duyệt. Sau khi admin duyệt thanh toán, vé sẽ hiển thị tại đây.
+          </div>
+        ) : (
+          tickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} />)
+        )}
       </div>
     </section>
   );
