@@ -1,0 +1,116 @@
+{
+  "groups": [
+    {
+      "name": "jwt",
+      "type": "java.lang.Object",
+      "sourceType": "com.ticketrush.common.util.JwtUtil"
+    },
+    {
+      "name": "app.oauth2",
+      "type": "java.lang.Object"
+    },
+    {
+      "name": "app.auth",
+      "type": "java.lang.Object"
+    },
+    {
+      "name": "app.minio",
+      "type": "java.lang.Object"
+    },
+    {
+      "name": "app.flash-sale",
+      "type": "java.lang.Object"
+    },
+    {
+      "name": "app.events",
+      "type": "java.lang.Object"
+    }
+  ],
+  "properties": [
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key used to sign JWT tokens."
+    },
+    {
+      "name": "jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT expiration time in milliseconds."
+    },
+    {
+      "name": "app.oauth2.redirect-uri",
+      "type": "java.lang.String",
+      "description": "Frontend redirect URL after OAuth2 login succeeds."
+    },
+    {
+      "name": "app.auth.code-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "OTP code validity in minutes."
+    },
+    {
+      "name": "app.auth.dev-return-code",
+      "type": "java.lang.Boolean",
+      "description": "Return OTP in API response when email sending fails in development."
+    },
+    {
+      "name": "app.minio.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable or disable MinIO integration."
+    },
+    {
+      "name": "app.minio.endpoint",
+      "type": "java.lang.String",
+      "description": "MinIO endpoint URL."
+    },
+    {
+      "name": "app.minio.access-key",
+      "type": "java.lang.String",
+      "description": "MinIO access key."
+    },
+    {
+      "name": "app.minio.secret-key",
+      "type": "java.lang.String",
+      "description": "MinIO secret key."
+    },
+    {
+      "name": "app.minio.bucket",
+      "type": "java.lang.String",
+      "description": "MinIO bucket for uploaded assets."
+    },
+    {
+      "name": "app.minio.public-base-url",
+      "type": "java.lang.String",
+      "description": "Public base URL used to build object URLs."
+    },
+    {
+      "name": "app.flash-sale.queue-name",
+      "type": "java.lang.String",
+      "description": "RabbitMQ queue name for flash-sale order requests."
+    },
+    {
+      "name": "app.flash-sale.exchange-name",
+      "type": "java.lang.String",
+      "description": "RabbitMQ exchange name for flash-sale events."
+    },
+    {
+      "name": "app.flash-sale.routing-key",
+      "type": "java.lang.String",
+      "description": "RabbitMQ routing key used for flash-sale order messages."
+    },
+    {
+      "name": "app.flash-sale.consumer.max-per-second",
+      "type": "java.lang.Integer",
+      "description": "Maximum flash-sale messages processed per second."
+    },
+    {
+      "name": "app.flash-sale.redis-hold-seconds",
+      "type": "java.lang.Integer",
+      "description": "How long seat holds remain in Redis before expiration."
+    },
+    {
+      "name": "app.events.featured-limit",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of featured events returned by API."
+    }
+  ]
+}

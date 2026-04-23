@@ -1,6 +1,6 @@
 import { CalendarDays, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearAuthSession } from '../utils/authStorage';
+import { clearAuthSession } from '../features/auth/utils/authStorage';
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
