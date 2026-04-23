@@ -1,7 +1,7 @@
 package com.ticketrush;
 
-import com.ticketrush.entity.User;
-import com.ticketrush.repository.UserRepository;
+import com.ticketrush.features.user.entity.User;
+import com.ticketrush.features.user.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

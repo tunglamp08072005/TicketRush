@@ -1,0 +1,237 @@
+.guest-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: transparent;
+  box-shadow: 0 10px 24px rgba(36, 18, 78, 0.25);
+}
+
+.guest-header-top,
+.guest-header-bottom-inner {
+  width: min(1360px, calc(100% - 3rem));
+  margin: 0 auto;
+}
+
+.guest-header-top-wrap {
+  width: 100%;
+  background: rgba(58, 28, 115, 0.9);
+  backdrop-filter: blur(8px);
+  border-bottom: 0;
+}
+
+.guest-header-top {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.guest-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.guest-brand {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
+  color: #ffffff;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.guest-search-form {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+  max-width: 640px;
+}
+
+.guest-search-field {
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #e5e7eb;
+  padding: 0 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.52rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.guest-search-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  flex: 0 0 auto;
+}
+
+.guest-search-field input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.guest-search-field input::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.guest-search-submit {
+  min-height: 48px;
+  min-width: 120px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  cursor: pointer;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.guest-auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.guest-auth-button {
+  min-width: 116px;
+  min-height: 42px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.guest-auth-login {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
+}
+
+.guest-auth-register {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
+}
+
+.guest-auth-button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.guest-header-bottom {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  background: #5b21b6;
+  border-top: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.guest-header-bottom-inner {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+}
+
+.guest-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.guest-nav-link {
+  min-width: 120px;
+  min-height: 36px;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  color: rgba(248, 250, 252, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.guest-nav-link:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.guest-nav-link.active {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: transparent;
+}
+
+@media (max-width: 820px) {
+  .guest-header-top,
+  .guest-header-bottom-inner {
+    width: calc(100% - 1.2rem);
+  }
+
+  .guest-header-top {
+    min-height: 62px;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.5rem 0;
+  }
+
+  .guest-brand {
+    font-size: 2.2rem;
+  }
+
+  .guest-brand-row {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .guest-search-form {
+    width: 100%;
+    max-width: none;
+  }
+
+  .guest-search-submit {
+    min-width: 92px;
+    min-height: 42px;
+  }
+
+  .guest-auth-button {
+    min-width: 92px;
+    min-height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .guest-header-bottom {
+    min-height: 46px;
+  }
+
+  .guest-header-bottom-inner {
+    min-height: 46px;
+  }
+
+  .guest-nav-link {
+    min-width: 104px;
+    min-height: 34px;
+    font-size: 0.92rem;
+  }
+}

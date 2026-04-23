@@ -1,0 +1,16 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: ticketrush-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${SPRING_RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${SPRING_RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ticketrush_rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  ticketrush_rabbitmq_data:
