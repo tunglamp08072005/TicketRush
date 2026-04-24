@@ -530,7 +530,7 @@ export default function EventExplorerSection({
               <div className="event-card-body">
                 <h3 className="event-card-title">{item.event.name}</h3>
                 <p className="event-card-date">{formatDate(item.event.eventStartDate || item.event.openSaleDate)}</p>
-                <Link to={`/events/${item.event.id}`} className="event-card-cta">Xem thông tin</Link>
+                <Link to={`/user/events/${item.event.id}`} className="event-card-cta">Xem thông tin</Link>
               </div>
             </article>
           ))}

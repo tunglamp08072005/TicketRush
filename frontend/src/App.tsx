@@ -29,6 +29,30 @@ export default function App() {
           }
         />
         <Route
+          path="/user/events/:eventId"
+          element={
+            <ProtectedRoute requiredRole="USER">
+              <EventDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/events/:eventId/booking"
+          element={
+            <ProtectedRoute requiredRole="USER">
+              <EventSeatBookingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/events/:eventId/booking/payment"
+          element={
+            <ProtectedRoute requiredRole="USER">
+              <EventPaymentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
             <ProtectedRoute requiredRole="ADMIN">

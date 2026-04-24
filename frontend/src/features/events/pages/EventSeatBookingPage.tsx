@@ -128,7 +128,12 @@ export default function EventSeatBookingPage() {
   const handleBack = () => {
     const id = eventDetail?.id ?? Number(eventId);
     if (Number.isFinite(id)) {
-      navigate(`/events/${id}`);
+      navigate(isLoggedIn ? `/user/events/${id}` : `/events/${id}`);
+      return;
+    }
+
+    if (isLoggedIn) {
+      navigate('/user', { state: { activeMenu: 'events' } });
       return;
     }
 
@@ -163,7 +168,7 @@ export default function EventSeatBookingPage() {
       return;
     }
 
-    navigate(`/events/${id}/booking/payment`, {
+    navigate(`/user/events/${id}/booking/payment`, {
       state: {
         seatIds: selectedSeatIds,
       },
@@ -276,7 +281,7 @@ export default function EventSeatBookingPage() {
                   {!isLoggedIn ? (
                     <div className="seat-auth-note">
                       <p>Bạn cần đăng nhập để chọn ghế và thanh toán.</p>
-                      <Link to="/auth" className="seat-booking-primary">Đăng nhập</Link>
+                      <Link to={`/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`} className="seat-booking-primary">Đăng nhập</Link>
                     </div>
                   ) : (
                     <div className="seat-checkout-box">
