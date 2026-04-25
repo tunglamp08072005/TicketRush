@@ -21,6 +21,18 @@ export interface PaymentOrder {
   createdAt: string;
 }
 
+export interface SeatHoldResponse {
+  eventId: number;
+  seatCodes: string[];
+  lockedUntil: string;
+  holdMinutes: number;
+}
+
+export interface SeatReleaseResponse {
+  eventId: number;
+  releasedSeatCodes: string[];
+}
+
 interface CheckoutPayload {
   eventId: number;
   seatIds: number[];
@@ -64,6 +76,66 @@ export async function checkoutPayment(payload: CheckoutPayload): Promise<Payment
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || 'Không thể tạo đơn thanh toán');
+  }
+
+  return await response.json();
+}
+
+export async function holdSeatsForPayment(eventId: number, seatIds: number[]): Promise<SeatHoldResponse> {
+  const { token } = getAuthSession();
+  if (!token) {
+    throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
+  }
+
+  if (!Array.isArray(seatIds) || seatIds.length === 0) {
+    throw new Error('Bạn chưa chọn ghế để giữ chỗ.');
+  }
+
+  const formData = new FormData();
+  formData.append('eventId', String(eventId));
+  formData.append('seatIds', seatIds.join(','));
+
+  const response = await fetch('http://localhost:8080/api/user/payments/hold', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Không thể giữ ghế');
+  }
+
+  return await response.json();
+}
+
+export async function releaseHeldSeatsForPayment(eventId: number, seatIds: number[]): Promise<SeatReleaseResponse> {
+  const { token } = getAuthSession();
+  if (!token) {
+    throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
+  }
+
+  if (!Array.isArray(seatIds) || seatIds.length === 0) {
+    throw new Error('Bạn chưa chọn ghế để xóa giữ chỗ.');
+  }
+
+  const formData = new FormData();
+  formData.append('eventId', String(eventId));
+  formData.append('seatIds', seatIds.join(','));
+
+  const response = await fetch('http://localhost:8080/api/user/payments/release-hold', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Không thể xóa giữ ghế');
   }
 
   return await response.json();

@@ -1,11 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import {
   createAdminEvent,
   updateAdminEvent,
   uploadEventLayoutMap,
   uploadEventPoster,
   type AdminEvent,
-  type AdminEventStatus,
   type CreateAdminEventZonePayload,
 } from '../../../events/services/eventApi';
 
@@ -25,11 +24,75 @@ interface ZoneDraft {
   colorHex: string;
 }
 
-type FieldErrors = Partial<Record<'name' | 'description' | 'location' | 'openSaleDate' | 'eventStartDate' | 'posterFile' | 'layoutMapFile' | 'seatHoldMinutes' | 'zones', string>>;
+type FieldErrors = Partial<Record<'name' | 'description' | 'location' | 'openSaleDate' | 'saleEndDate' | 'eventStartDate' | 'posterFile' | 'layoutMapFile' | 'seatHoldMinutes' | 'zones', string>>;
 type ZoneField = 'name' | 'price' | 'rowCount' | 'seatsPerRow';
 type ZoneErrors = Record<number, Partial<Record<ZoneField, string>>>;
 
 const zonePalette = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6'];
+
+const PROVINCE_CITY_OPTIONS = [
+  'Hà Nội',
+  'Hồ Chí Minh',
+  'Đà Nẵng',
+  'Hải Phòng',
+  'Cần Thơ',
+  'An Giang',
+  'Bà Rịa - Vũng Tàu',
+  'Bắc Giang',
+  'Bắc Ninh',
+  'Bình Dương',
+  'Đồng Nai',
+  'Khánh Hòa',
+  'Lâm Đồng',
+  'Nghệ An',
+  'Quảng Ninh',
+  'Thừa Thiên Huế',
+  'Thanh Hóa',
+];
+
+const DISTRICT_OPTIONS_BY_PROVINCE: Record<string, string[]> = {
+  'Hà Nội': ['Ba Đình', 'Hoàn Kiếm', 'Cầu Giấy', 'Đống Đa', 'Hai Bà Trưng', 'Nam Từ Liêm', 'Bắc Từ Liêm', 'Thanh Xuân', 'Hoàng Mai', 'Long Biên'],
+  'Hồ Chí Minh': ['Quận 1', 'Quận 3', 'Quận 7', 'Quận Bình Thạnh', 'Quận Tân Bình', 'Quận Gò Vấp', 'Quận Phú Nhuận', 'Thành phố Thủ Đức', 'Huyện Bình Chánh'],
+  'Đà Nẵng': ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ'],
+  'Hải Phòng': ['Hồng Bàng', 'Lê Chân', 'Ngô Quyền', 'Hải An', 'Kiến An', 'Dương Kinh'],
+  'Cần Thơ': ['Ninh Kiều', 'Bình Thủy', 'Cái Răng', 'Ô Môn', 'Thốt Nốt'],
+};
+
+const WARD_OPTIONS_BY_DISTRICT: Record<string, string[]> = {
+  'Ba Đình': ['Phúc Xá', 'Trúc Bạch', 'Ngọc Hà', 'Kim Mã'],
+  'Cầu Giấy': ['Dịch Vọng', 'Dịch Vọng Hậu', 'Mai Dịch', 'Nghĩa Đô', 'Quan Hoa', 'Yên Hòa'],
+  'Nam Từ Liêm': ['Mễ Trì', 'Mỹ Đình 1', 'Mỹ Đình 2', 'Phú Đô', 'Trung Văn', 'Xuân Phương'],
+  'Quận 1': ['Bến Nghé', 'Bến Thành', 'Đa Kao', 'Nguyễn Thái Bình'],
+  'Quận 7': ['Tân Phú', 'Tân Hưng', 'Tân Quy', 'Phú Mỹ'],
+  'Thành phố Thủ Đức': ['An Khánh', 'An Lợi Đông', 'Hiệp Bình Chánh', 'Linh Tây', 'Thảo Điền'],
+  'Hải Châu': ['Hải Châu 1', 'Hải Châu 2', 'Phước Ninh', 'Thanh Bình'],
+};
+
+function normalizeVietnameseText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+}
+
+function uniqueList(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
+function optionMatches(option: string, keyword: string): boolean {
+  if (!keyword.trim()) {
+    return true;
+  }
+
+  return normalizeVietnameseText(option).includes(normalizeVietnameseText(keyword));
+}
+
+function filterSuggestions(options: string[], keyword: string): string[] {
+  return uniqueList(options.filter(option => optionMatches(option, keyword)));
+}
 
 function createZoneDraft(index: number): ZoneDraft {
   return {
@@ -81,15 +144,58 @@ function formatCurrency(value: string): string {
   return `${numericValue.toLocaleString('vi-VN')} VND`;
 }
 
+function parseLocationParts(rawLocation: string | undefined): {
+  provinceCity: string;
+  district: string;
+  ward: string;
+  streetAddress: string;
+} {
+  const value = (rawLocation || '').trim();
+  if (!value) {
+    return {
+      provinceCity: '',
+      district: '',
+      ward: '',
+      streetAddress: '',
+    };
+  }
+
+  const parts = value.split(',').map(part => part.trim()).filter(Boolean);
+  if (parts.length < 4) {
+    return {
+      provinceCity: '',
+      district: '',
+      ward: '',
+      streetAddress: value,
+    };
+  }
+
+  const provinceCity = parts[parts.length - 1];
+  const district = parts[parts.length - 2];
+  const ward = parts[parts.length - 3];
+  const streetAddress = parts.slice(0, -3).join(', ');
+
+  return {
+    provinceCity,
+    district,
+    ward,
+    streetAddress,
+  };
+}
+
 export default function AddEventForm({ onCancel, onCreated, initialEvent = null }: AddEventFormProps) {
   const isEditMode = initialEvent !== null;
+  const initialLocationParts = parseLocationParts(initialEvent?.location);
   const [name, setName] = useState(initialEvent?.name ?? '');
   const [description, setDescription] = useState(initialEvent?.description ?? '');
-  const [location, setLocation] = useState(initialEvent?.location ?? '');
+  const [provinceCity, setProvinceCity] = useState(initialLocationParts.provinceCity);
+  const [district, setDistrict] = useState(initialLocationParts.district);
+  const [ward, setWard] = useState(initialLocationParts.ward);
+  const [streetAddress, setStreetAddress] = useState(initialLocationParts.streetAddress);
   const [openSaleDate, setOpenSaleDate] = useState(toDateTimeLocal(initialEvent?.openSaleDate));
+  const [saleEndDate, setSaleEndDate] = useState(toDateTimeLocal(initialEvent?.saleEndDate));
   const [eventStartDate, setEventStartDate] = useState(toDateTimeLocal(initialEvent?.eventStartDate));
   const [seatHoldMinutes, setSeatHoldMinutes] = useState(String(initialEvent?.seatHoldMinutes ?? 10));
-  const [status, setStatus] = useState<AdminEventStatus>(initialEvent?.status ?? 'UPCOMING');
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [layoutMapFile, setLayoutMapFile] = useState<File | null>(null);
   const [zones, setZones] = useState<ZoneDraft[]>(
@@ -109,6 +215,49 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [zoneErrors, setZoneErrors] = useState<ZoneErrors>({});
+
+  const provinceCitySuggestions = useMemo(
+    () => filterSuggestions(PROVINCE_CITY_OPTIONS, provinceCity),
+    [provinceCity],
+  );
+
+  const districtBaseOptions = useMemo(() => {
+    const matchedProvinces = PROVINCE_CITY_OPTIONS.filter(option => optionMatches(option, provinceCity));
+
+    if (matchedProvinces.length === 1) {
+      return DISTRICT_OPTIONS_BY_PROVINCE[matchedProvinces[0]] || [];
+    }
+
+    if (matchedProvinces.length > 1) {
+      return uniqueList(matchedProvinces.flatMap(option => DISTRICT_OPTIONS_BY_PROVINCE[option] || []));
+    }
+
+    return uniqueList(Object.values(DISTRICT_OPTIONS_BY_PROVINCE).flat());
+  }, [provinceCity]);
+
+  const districtSuggestions = useMemo(
+    () => filterSuggestions(districtBaseOptions, district),
+    [districtBaseOptions, district],
+  );
+
+  const wardBaseOptions = useMemo(() => {
+    const matchedDistricts = districtBaseOptions.filter(option => optionMatches(option, district));
+
+    if (matchedDistricts.length === 1) {
+      return WARD_OPTIONS_BY_DISTRICT[matchedDistricts[0]] || [];
+    }
+
+    if (matchedDistricts.length > 1) {
+      return uniqueList(matchedDistricts.flatMap(option => WARD_OPTIONS_BY_DISTRICT[option] || []));
+    }
+
+    return uniqueList(Object.values(WARD_OPTIONS_BY_DISTRICT).flat());
+  }, [districtBaseOptions, district]);
+
+  const wardSuggestions = useMemo(
+    () => filterSuggestions(wardBaseOptions, ward),
+    [wardBaseOptions, ward],
+  );
 
   const inputClass = (hasError: boolean) =>
     `w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 ${
@@ -156,14 +305,23 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
     if (!description.trim()) {
       nextFieldErrors.description = 'Vui lòng nhập mô tả sự kiện.';
     }
-    if (!location.trim()) {
-      nextFieldErrors.location = 'Vui lòng nhập địa điểm.';
+    if (!provinceCity.trim()) {
+      nextFieldErrors.location = 'Vui lòng chọn Tỉnh / Thành phố.';
+    } else if (!district.trim()) {
+      nextFieldErrors.location = 'Vui lòng nhập Quận / Huyện.';
+    } else if (!ward.trim()) {
+      nextFieldErrors.location = 'Vui lòng nhập Phường / Xã.';
+    } else if (!streetAddress.trim()) {
+      nextFieldErrors.location = 'Vui lòng nhập Số nhà, Tên đường.';
     }
     if (!openSaleDate) {
       nextFieldErrors.openSaleDate = 'Vui lòng chọn ngày mở bán.';
     }
     if (!eventStartDate) {
       nextFieldErrors.eventStartDate = 'Vui lòng chọn ngày giờ diễn ra.';
+    }
+    if (!saleEndDate) {
+      nextFieldErrors.saleEndDate = 'Vui lòng chọn thời gian ngừng bán.';
     }
     if (!posterFile && !initialEvent?.heroImageUrl) {
       nextFieldErrors.posterFile = 'Vui lòng chọn poster sự kiện.';
@@ -173,6 +331,18 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
     }
 
     const normalizedSeatHoldMinutes = Number(seatHoldMinutes);
+        const openSaleTimestamp = Date.parse(openSaleDate);
+        const saleEndTimestamp = Date.parse(saleEndDate);
+        const eventStartTimestamp = Date.parse(eventStartDate);
+
+        if (Number.isFinite(openSaleTimestamp) && Number.isFinite(saleEndTimestamp) && openSaleTimestamp > saleEndTimestamp) {
+          nextFieldErrors.saleEndDate = 'Thời gian ngừng bán phải sau thời gian mở bán.';
+        }
+
+        if (Number.isFinite(saleEndTimestamp) && Number.isFinite(eventStartTimestamp) && saleEndTimestamp > eventStartTimestamp) {
+          nextFieldErrors.saleEndDate = 'Thời gian ngừng bán phải trước thời gian diễn ra.';
+        }
+
     if (!Number.isInteger(normalizedSeatHoldMinutes) || normalizedSeatHoldMinutes < 1 || normalizedSeatHoldMinutes > 120) {
       nextFieldErrors.seatHoldMinutes = 'Thời gian giữ ghế phải là số nguyên từ 1 đến 120 phút.';
     }
@@ -233,21 +403,23 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
       setSubmitting(true);
       setError('');
       const normalizedOpenSaleDate = openSaleDate.length === 16 ? `${openSaleDate}:00` : openSaleDate;
+      const normalizedSaleEndDate = saleEndDate.length === 16 ? `${saleEndDate}:00` : saleEndDate;
       const normalizedEventStartDate = eventStartDate.length === 16 ? `${eventStartDate}:00` : eventStartDate;
+      const normalizedLocation = `${streetAddress.trim()}, ${ward.trim()}, ${district.trim()}, ${provinceCity.trim()}`;
       const posterUrl = posterFile ? await uploadEventPoster(posterFile) : initialEvent?.heroImageUrl ?? '';
       const layoutMapUrl = layoutMapFile ? await uploadEventLayoutMap(layoutMapFile) : initialEvent?.layoutMapUrl ?? '';
 
       const payload = {
         name: name.trim(),
         description: description.trim(),
-        location: location.trim(),
+        location: normalizedLocation,
         heroImageUrl: posterUrl,
         thumbnailUrl: posterUrl,
         layoutMapUrl,
         openSaleDate: normalizedOpenSaleDate,
+        saleEndDate: normalizedSaleEndDate,
         eventStartDate: normalizedEventStartDate,
         seatHoldMinutes: normalizedSeatHoldMinutes,
-        status,
         zones: normalizedZones,
       };
 
@@ -331,19 +503,80 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="location">
-            Địa điểm <span className="text-red-600">*</span>
+          <label className="mb-1 block text-sm text-slate-600" htmlFor="provinceCity">
+            Tỉnh / Thành phố <span className="text-red-600">*</span>
           </label>
           <input
-            id="location"
-            value={location}
-            onChange={e => setLocation(setSingleField('location', e.target.value))}
+            id="provinceCity"
+            list="province-city-options"
+            value={provinceCity}
+            onChange={e => setProvinceCity(setSingleField('location', e.target.value))}
             className={inputClass(Boolean(fieldErrors.location))}
-            placeholder="Nhà thi đấu Phú Thọ"
+            placeholder="Ví dụ: Hà Nội"
             disabled={submitting}
           />
-          {fieldErrors.location && <p className="mt-1 text-xs text-red-600">{fieldErrors.location}</p>}
+          <datalist id="province-city-options">
+            {provinceCitySuggestions.map(option => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-slate-600" htmlFor="district">
+            Quận / Huyện <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="district"
+            list="district-options"
+            value={district}
+            onChange={e => setDistrict(setSingleField('location', e.target.value))}
+            className={inputClass(Boolean(fieldErrors.location))}
+            placeholder="Ví dụ: Nam Từ Liêm"
+            disabled={submitting}
+          />
+          <datalist id="district-options">
+            {districtSuggestions.map(option => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-slate-600" htmlFor="ward">
+            Phường / Xã <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="ward"
+            list="ward-options"
+            value={ward}
+            onChange={e => setWard(setSingleField('location', e.target.value))}
+            className={inputClass(Boolean(fieldErrors.location))}
+            placeholder="Ví dụ: Mễ Trì"
+            disabled={submitting}
+          />
+          <datalist id="ward-options">
+            {wardSuggestions.map(option => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-slate-600" htmlFor="streetAddress">
+            Số nhà, Tên đường <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="streetAddress"
+            value={streetAddress}
+            onChange={e => setStreetAddress(setSingleField('location', e.target.value))}
+            className={inputClass(Boolean(fieldErrors.location))}
+            placeholder="Ví dụ: Số 1 Đại lộ Thăng Long"
+            disabled={submitting}
+          />
+        </div>
+
+        {fieldErrors.location && <p className="md:col-span-2 mt-1 text-xs text-red-600">{fieldErrors.location}</p>}
 
         <div>
           <label className="mb-1 block text-sm text-slate-600" htmlFor="openSaleDate">
@@ -374,26 +607,24 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
           />
           {fieldErrors.eventStartDate && <p className="mt-1 text-xs text-red-600">{fieldErrors.eventStartDate}</p>}
         </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-slate-600" htmlFor="saleEndDate">
+            Thời gian ngừng bán <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="saleEndDate"
+            type="datetime-local"
+            value={saleEndDate}
+            onChange={e => setSaleEndDate(setSingleField('saleEndDate', e.target.value))}
+            className={inputClass(Boolean(fieldErrors.saleEndDate))}
+            disabled={submitting}
+          />
+          {fieldErrors.saleEndDate && <p className="mt-1 text-xs text-red-600">{fieldErrors.saleEndDate}</p>}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div>
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="status">
-            Trạng thái
-          </label>
-          <select
-            id="status"
-            value={status}
-            onChange={e => setStatus(e.target.value as AdminEventStatus)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-orange-400"
-            disabled={submitting}
-          >
-            <option value="UPCOMING">Sắp diễn ra</option>
-            <option value="ON_SALE">Đang mở bán</option>
-            <option value="ENDED">Đã kết thúc</option>
-          </select>
-        </div>
-
         <div>
           <label className="mb-1 block text-sm text-slate-600" htmlFor="poster">
             Poster {isEditMode ? '(chọn file mới nếu muốn thay)' : '(upload MinIO)'} <span className="text-red-600">*</span>
@@ -467,6 +698,7 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
           {fieldErrors.seatHoldMinutes && <p className="mt-1 text-xs text-red-600">{fieldErrors.seatHoldMinutes}</p>}
           <p className="mt-1 text-xs text-slate-500">Mặc định 10 phút.</p>
         </div>
+
       </div>
 
       <section className={`space-y-4 rounded-2xl border bg-white p-4 shadow-sm ${fieldErrors.zones ? 'border-red-300' : 'border-slate-200'}`}>

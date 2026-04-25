@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { createPendingReservation } from '../../order-payment/services/pendingReservationService';
+import { holdSeatsForPayment } from '../../order-payment/services/paymentService';
+import { getMyProfile } from '../../user/services/userProfileService';
 import {
   getPublicEventDetail,
   getPublicSeatMap,
@@ -18,16 +20,31 @@ type SeatGroup = {
   seats: SeatMapSeat[];
 };
 
-const HOLD_RESERVATION_MINUTES = 24 * 60;
+const DEFAULT_HOLD_RESERVATION_MINUTES = 10;
 
 function formatVnd(value: number): string {
   return `${value.toLocaleString('vi-VN')}đ`;
+}
+
+function formatHoldDurationLabel(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} phút`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainMinutes = minutes % 60;
+  if (remainMinutes === 0) {
+    return `${hours} giờ`;
+  }
+
+  return `${hours} giờ ${remainMinutes} phút`;
 }
 
 export default function EventSeatBookingPage() {
   const navigate = useNavigate();
   const { eventId } = useParams();
   const { token } = getAuthSession();
+  const isLoggedIn = Boolean(token);
 
   const [eventDetail, setEventDetail] = useState<UserEventDetail | null>(null);
   const [seatMap, setSeatMap] = useState<SeatMapSeat[]>([]);
@@ -36,6 +53,8 @@ export default function EventSeatBookingPage() {
   const [error, setError] = useState('');
   const [seatError, setSeatError] = useState('');
   const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
+  const [profileChecking, setProfileChecking] = useState(false);
+  const [profileEligible, setProfileEligible] = useState(false);
 
   useEffect(() => {
     const id = Number(eventId);
@@ -84,6 +103,29 @@ export default function EventSeatBookingPage() {
     void loadSeatMap();
   }, [eventId]);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setProfileEligible(false);
+      return;
+    }
+
+    const loadProfileEligibility = async () => {
+      try {
+        setProfileChecking(true);
+        const profile = await getMyProfile();
+        const hasFullName = Boolean((profile.profile || '').trim());
+        const hasPhone = Boolean((profile.phoneNumber || '').trim());
+        setProfileEligible(hasFullName && hasPhone);
+      } catch {
+        setProfileEligible(false);
+      } finally {
+        setProfileChecking(false);
+      }
+    };
+
+    void loadProfileEligibility();
+  }, [isLoggedIn]);
+
   const seatGroups = useMemo<SeatGroup[]>(() => {
     const map = new Map<number, SeatGroup>();
 
@@ -123,12 +165,27 @@ export default function EventSeatBookingPage() {
     [selectedSeats],
   );
 
-  const isLoggedIn = Boolean(token);
+  const holdMinutes = useMemo(() => {
+    if (!eventDetail || !Number.isFinite(eventDetail.seatHoldMinutes) || eventDetail.seatHoldMinutes <= 0) {
+      return DEFAULT_HOLD_RESERVATION_MINUTES;
+    }
+
+    return eventDetail.seatHoldMinutes;
+  }, [eventDetail]);
+
+  const holdDurationLabel = useMemo(() => formatHoldDurationLabel(holdMinutes), [holdMinutes]);
+
+  const canBookSeats = isLoggedIn && profileEligible && !profileChecking;
 
   const handleBack = () => {
     const id = eventDetail?.id ?? Number(eventId);
     if (Number.isFinite(id)) {
-      navigate(`/events/${id}`);
+      navigate(isLoggedIn ? `/user/events/${id}` : `/events/${id}`);
+      return;
+    }
+
+    if (isLoggedIn) {
+      navigate('/user', { state: { activeMenu: 'events' } });
       return;
     }
 
@@ -145,7 +202,7 @@ export default function EventSeatBookingPage() {
   };
 
   const toggleSeat = (seat: SeatMapSeat) => {
-    if (!isLoggedIn || seat.status !== 'AVAILABLE') {
+    if (!canBookSeats || seat.status !== 'AVAILABLE') {
       return;
     }
 
@@ -163,38 +220,58 @@ export default function EventSeatBookingPage() {
       return;
     }
 
-    navigate(`/events/${id}/booking/payment`, {
+    navigate(`/user/events/${id}/booking/payment`, {
       state: {
         seatIds: selectedSeatIds,
       },
     });
   };
 
-  const handleHoldSeat = () => {
+  const handleHoldSeat = async () => {
     const id = Number(eventId);
     if (!Number.isFinite(id) || selectedSeatIds.length === 0 || !eventDetail) {
       return;
     }
 
-    const selectedSeatCodes = selectedSeats.map(seat => seat.seatCode);
+    try {
+      const holdResult = await holdSeatsForPayment(id, selectedSeatIds);
+      const selectedSeatCodes = selectedSeats.map(seat => seat.seatCode);
+      const holdMinutes = Number.isFinite(holdResult.holdMinutes) && holdResult.holdMinutes > 0
+        ? holdResult.holdMinutes
+        : eventDetail.seatHoldMinutes;
 
-    createPendingReservation({
-      eventId: id,
-      eventName: eventDetail.name,
-      eventLocation: eventDetail.location,
-      seatIds: selectedSeatIds,
-      seatCodes: selectedSeatCodes,
-      totalAmount: selectedTotal,
-      holdMinutes: eventDetail.seatHoldMinutes || HOLD_RESERVATION_MINUTES,
-    });
+      createPendingReservation({
+        eventId: id,
+        eventName: eventDetail.name,
+        eventLocation: eventDetail.location,
+        seatIds: selectedSeatIds,
+        seatCodes: selectedSeatCodes,
+        totalAmount: selectedTotal,
+        holdMinutes,
+      });
 
-    setSelectedSeatIds([]);
+      setSeatError('');
+      setSelectedSeatIds([]);
 
-    navigate('/user', {
-      state: {
-        activeMenu: 'payments',
-      },
-    });
+      navigate('/user', {
+        state: {
+          activeMenu: 'payments',
+        },
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        setSeatError(err.message || 'Không thể giữ ghế. Vui lòng thử lại.');
+      } else {
+        setSeatError('Không thể giữ ghế. Vui lòng thử lại.');
+      }
+
+      try {
+        const freshSeatMap = await getPublicSeatMap(id);
+        setSeatMap(freshSeatMap);
+      } catch {
+        // Ignore refresh errors; primary error is already shown.
+      }
+    }
   };
 
   return (
@@ -260,7 +337,7 @@ export default function EventSeatBookingPage() {
                                 key={seat.id}
                                 type="button"
                                 className={`seat-item ${baseClass} ${isSelected ? 'selected' : ''}`.trim()}
-                                disabled={seat.status !== 'AVAILABLE' || !isLoggedIn}
+                                disabled={seat.status !== 'AVAILABLE' || !canBookSeats}
                                 onClick={() => toggleSeat(seat)}
                                 title={`${seat.seatCode} - ${formatVnd(seat.price)}`}
                               >
@@ -276,7 +353,22 @@ export default function EventSeatBookingPage() {
                   {!isLoggedIn ? (
                     <div className="seat-auth-note">
                       <p>Bạn cần đăng nhập để chọn ghế và thanh toán.</p>
-                      <Link to="/auth" className="seat-booking-primary">Đăng nhập</Link>
+                      <Link to={`/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`} className="seat-booking-primary">Đăng nhập</Link>
+                    </div>
+                  ) : profileChecking ? (
+                    <div className="seat-auth-note">
+                      <p>Đang kiểm tra hồ sơ người dùng...</p>
+                    </div>
+                  ) : !profileEligible ? (
+                    <div className="seat-auth-note">
+                      <p>Bạn cần cập nhật Họ và tên + Số điện thoại trong hồ sơ trước khi đặt vé.</p>
+                      <button
+                        type="button"
+                        className="seat-booking-primary"
+                        onClick={() => navigate('/user', { state: { activeMenu: 'account' } })}
+                      >
+                        Cập nhật hồ sơ
+                      </button>
                     </div>
                   ) : (
                     <div className="seat-checkout-box">
@@ -286,7 +378,7 @@ export default function EventSeatBookingPage() {
                       </div>
 
                       <p className="seat-checkout-note">
-                        Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ tối đa 24 giờ.
+                        Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ trong {holdDurationLabel}.
                       </p>
 
                       <div className="seat-booking-action-row">
@@ -303,9 +395,9 @@ export default function EventSeatBookingPage() {
                           type="button"
                           className="seat-booking-secondary"
                           disabled={selectedSeatIds.length === 0}
-                          onClick={handleHoldSeat}
+                          onClick={() => void handleHoldSeat()}
                         >
-                          Giữ chỗ 24 giờ
+                          Giữ chỗ {holdDurationLabel}
                         </button>
                       </div>
                     </div>

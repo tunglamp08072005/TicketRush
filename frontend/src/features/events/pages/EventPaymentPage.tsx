@@ -45,7 +45,7 @@ export default function EventPaymentPage() {
     }
 
     if (!Array.isArray(seatIds) || seatIds.length === 0) {
-      navigate(`/events/${eventId}/booking`, { replace: true });
+      navigate(`/user/events/${eventId}/booking`, { replace: true });
       return;
     }
 
@@ -91,7 +91,7 @@ export default function EventPaymentPage() {
   );
 
   const handleClose = () => {
-    navigate('/events', { replace: true });
+    navigate('/user', { replace: true, state: { activeMenu: 'events' } });
   };
 
   const handleCheckout = async () => {
@@ -162,7 +162,7 @@ export default function EventPaymentPage() {
                 <button
                   type="button"
                   className="event-payment-primary"
-                  onClick={() => navigate('/events')}
+                  onClick={() => navigate('/user', { state: { activeMenu: 'events' } })}
                 >
                   Về danh sách sự kiện
                 </button>

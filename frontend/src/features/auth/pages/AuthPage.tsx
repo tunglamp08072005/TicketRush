@@ -3,11 +3,27 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import LoginForm from '../components/LoginForm';
 import RegisterForm from '../components/RegisterForm';
 import './AuthPage.css';
-import { setAuthSession } from '../utils/authStorage';
+import { getAuthSession, setAuthSession } from '../utils/authStorage';
 
 function normalizeRole(role: string | null | undefined): 'USER' | 'ADMIN' {
   const normalized = (role || 'USER').toUpperCase().trim().replace(/^ROLE_/, '');
   return normalized === 'ADMIN' ? 'ADMIN' : 'USER';
+}
+
+function resolveRedirectTarget(rawRedirect: string | null): string | null {
+  if (!rawRedirect) {
+    return null;
+  }
+
+  if (!rawRedirect.startsWith('/') || rawRedirect.startsWith('//')) {
+    return null;
+  }
+
+  if (rawRedirect.startsWith('/auth')) {
+    return null;
+  }
+
+  return rawRedirect;
 }
 
 export default function AuthPage() {
@@ -20,6 +36,7 @@ export default function AuthPage() {
     const token = params.get('token');
     const role = params.get('role');
     const username = params.get('username');
+    const redirectTarget = resolveRedirectTarget(params.get('redirect'));
     const error = params.get('error');
     const errorDetail = params.get('error_detail');
 
@@ -31,6 +48,15 @@ export default function AuthPage() {
     }
 
     if (!token || !role) {
+      const currentSession = getAuthSession();
+      if (currentSession.token && currentSession.role) {
+        if (currentSession.role === 'ADMIN') {
+          navigate('/admin', { replace: true });
+          return;
+        }
+
+        navigate(redirectTarget || '/user', { replace: true });
+      }
       return;
     }
 
@@ -41,16 +67,18 @@ export default function AuthPage() {
       navigate('/admin', { replace: true });
       return;
     }
-    navigate('/user', { replace: true });
+    navigate(redirectTarget || '/user', { replace: true });
   }, [location.search, navigate]);
 
   const handleLoginSuccess = (payload: { token: string; role: string }) => {
+    const params = new URLSearchParams(location.search);
+    const redirectTarget = resolveRedirectTarget(params.get('redirect'));
     const role = normalizeRole(payload.role);
     if (role === 'ADMIN') {
-      navigate('/admin');
+      navigate('/admin', { replace: true });
       return;
     }
-    navigate('/user');
+    navigate(redirectTarget || '/user', { replace: true });
   };
 
   return (

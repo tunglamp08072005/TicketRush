@@ -1,11 +1,15 @@
 package com.ticketrush.features.user.service;
 
+import com.ticketrush.features.user.dto.AdminUserItemDto;
+import com.ticketrush.features.user.dto.AdminUsersOverviewResponse;
 import com.ticketrush.features.user.entity.User;
 import com.ticketrush.features.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -77,6 +81,43 @@ public class UserService {
         return userRepository.save(user);
     }
 
+        public AdminUsersOverviewResponse getAdminUsersOverview() {
+        List<User> users = userRepository.findAll().stream()
+            .sorted(Comparator.comparing(User::getId).reversed())
+            .toList();
+
+        List<AdminUserItemDto> userItems = users.stream()
+            .map(user -> {
+                boolean hasProfile = hasText(user.getProfileText());
+                boolean hasPhoneNumber = hasText(user.getPhoneNumber());
+
+                return new AdminUserItemDto(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getEmail(),
+                    normalizeRole(user.getRole()),
+                    hasProfile && hasPhoneNumber,
+                    hasPhoneNumber
+                );
+            })
+            .toList();
+
+        int totalUsers = userItems.size();
+        int totalAdmins = (int) userItems.stream().filter(item -> "ADMIN".equals(item.getRole())).count();
+        int totalStandardUsers = (int) userItems.stream().filter(item -> "USER".equals(item.getRole())).count();
+        int completedProfileUsers = (int) userItems.stream().filter(AdminUserItemDto::isProfileCompleted).count();
+        int usersWithPhoneNumber = (int) userItems.stream().filter(AdminUserItemDto::isHasPhoneNumber).count();
+
+        return new AdminUsersOverviewResponse(
+            totalUsers,
+            totalAdmins,
+            totalStandardUsers,
+            completedProfileUsers,
+            usersWithPhoneNumber,
+            userItems
+        );
+        }
+
     public String resolveAvailableUsername(String preferredUsername, String fallbackUsername, Long currentUserId) {
         String preferred = normalizeUsername(preferredUsername);
         String fallback = normalizeUsername(fallbackUsername);
@@ -115,5 +156,9 @@ public class UserService {
         }
         String trimmed = email.trim();
         return trimmed.isEmpty() ? null : trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

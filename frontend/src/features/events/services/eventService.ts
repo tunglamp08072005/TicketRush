@@ -21,6 +21,7 @@ export interface FeaturedEvent {
   heroImageUrl: string;
   thumbnailUrl: string;
   openSaleDate: string;
+  saleEndDate: string;
   status: EventStatus;
 }
 

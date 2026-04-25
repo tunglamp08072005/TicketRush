@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { getAuthSession } from '../../auth/utils/authStorage';
 import { getPublicEventDetail, type UserEventDetail } from '../services/eventService';
 import './EventDetailPage.css';
 
@@ -31,6 +32,7 @@ function statusLabel(status: UserEventDetail['status']): string {
 export default function EventDetailPage() {
   const navigate = useNavigate();
   const { eventId } = useParams();
+  const { token } = getAuthSession();
 
   const [eventDetail, setEventDetail] = useState<UserEventDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,7 @@ export default function EventDetailPage() {
   const zoneCount = useMemo(() => eventDetail?.zones?.length ?? 0, [eventDetail]);
 
   const handleBack = () => {
-    navigate('/events');
+    navigate(token ? '/user' : '/events', token ? { state: { activeMenu: 'events' } } : undefined);
   };
 
 
@@ -111,7 +113,14 @@ export default function EventDetailPage() {
                 </div>
 
                 <div className="event-detail-actions">
-                  <Link to={`/events/${eventDetail.id}/booking`} className="event-detail-primary">Đặt ghế ngay</Link>
+                  <Link
+                    to={token
+                      ? `/user/events/${eventDetail.id}/booking`
+                      : `/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`}
+                    className="event-detail-primary"
+                  >
+                    {token ? 'Đặt ghế ngay' : 'Đăng nhập để đặt ghế'}
+                  </Link>
                 </div>
               </div>
             </article>

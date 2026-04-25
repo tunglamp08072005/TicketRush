@@ -2,6 +2,8 @@ package com.ticketrush.features.payment.controller;
 
 import com.ticketrush.features.payment.dto.AdminPaymentReviewRequest;
 import com.ticketrush.features.payment.dto.PaymentOrderDto;
+import com.ticketrush.features.payment.dto.SeatHoldResponseDto;
+import com.ticketrush.features.payment.dto.SeatReleaseResponseDto;
 import com.ticketrush.features.user.entity.User;
 import com.ticketrush.features.payment.service.PaymentService;
 import com.ticketrush.features.user.service.UserService;
@@ -57,6 +59,54 @@ public class PaymentController {
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Không thể tạo đơn thanh toán: " + ex.getMessage());
+        }
+    }
+
+    @PostMapping("/api/user/payments/hold")
+    public ResponseEntity<?> holdSeats(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam("eventId") Long eventId,
+            @RequestParam("seatIds") String seatIdsRaw
+    ) {
+        try {
+            User user = resolveUser(authorizationHeader);
+            List<Long> seatIds = Arrays.stream(seatIdsRaw.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .map(Long::valueOf)
+                    .toList();
+
+            SeatHoldResponseDto response = paymentService.holdSeatsForCheckout(user, eventId, seatIds);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Không thể giữ ghế: " + ex.getMessage());
+        }
+    }
+
+    @PostMapping("/api/user/payments/release-hold")
+    public ResponseEntity<?> releaseHeldSeats(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam("eventId") Long eventId,
+            @RequestParam("seatIds") String seatIdsRaw
+    ) {
+        try {
+            User user = resolveUser(authorizationHeader);
+            List<Long> seatIds = Arrays.stream(seatIdsRaw.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .map(Long::valueOf)
+                    .toList();
+
+            SeatReleaseResponseDto response = paymentService.releaseHeldSeats(user, eventId, seatIds);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Không thể xóa giữ ghế: " + ex.getMessage());
         }
     }
 

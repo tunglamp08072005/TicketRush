@@ -1,11 +1,14 @@
 ﻿import { CalendarDays, CircleDollarSign, Pencil, Plus, Ticket, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AddEventForm from '../components/admin/AddEventForm';
-import { deleteAdminEvent, fetchAdminEvents, type AdminEvent } from '../../events/services/eventApi';
 import {
-  approvePayment,
-  fetchPendingPaymentsForAdmin,
-  rejectPayment,
+  deleteAdminEvent,
+  fetchAdminEvents,
+  updateAdminEvent,
+  type AdminEvent,
+  type CreateAdminEventPayload,
+} from '../../events/services/eventApi';
+import {
   type PaymentOrder,
 } from '../../order-payment/services/paymentService';
 
@@ -34,6 +37,30 @@ function statusClass(status: AdminEvent['status']): string {
   return 'border border-slate-200 bg-slate-100 text-slate-700';
 }
 
+function resolveRuntimeStatus(event: AdminEvent): AdminEvent['status'] {
+  const openSale = new Date(event.openSaleDate);
+  const saleEnd = new Date(event.saleEndDate);
+  const now = new Date();
+
+  if (event.archived) {
+    return 'ENDED';
+  }
+
+  if (Number.isNaN(openSale.getTime()) || Number.isNaN(saleEnd.getTime())) {
+    return event.status;
+  }
+
+  if (now >= saleEnd) {
+    return 'ENDED';
+  }
+
+  if (now >= openSale) {
+    return 'ON_SALE';
+  }
+
+  return 'UPCOMING';
+}
+
 function statusLabel(status: AdminEvent['status']): string {
   if (status === 'ON_SALE') {
     return 'Đang mở bán';
@@ -60,7 +87,7 @@ function formatCurrency(value: number): string {
 
 function resolveSeatProgress(event: AdminEvent): { ratio: number; soldSeats: number; totalSeats: number; estimated: boolean } {
   const totalSeats = Math.max(0, event.totalSeatCount);
-  const soldSeatCountRaw = (event as unknown as { soldSeatCount?: number }).soldSeatCount;
+  const soldSeatCountRaw = event.soldSeatCount;
 
   if (typeof soldSeatCountRaw === 'number' && Number.isFinite(soldSeatCountRaw)) {
     const soldSeats = Math.min(totalSeats, Math.max(0, soldSeatCountRaw));
@@ -74,6 +101,7 @@ function resolveSeatProgress(event: AdminEvent): { ratio: number; soldSeats: num
 }
 
 export default function AdminEventDashboard() {
+  const POLL_INTERVAL_MS = 5000;
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -81,47 +109,39 @@ export default function AdminEventDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
-  const [pendingPayments, setPendingPayments] = useState<PaymentOrder[]>([]);
-  const [loadingPayments, setLoadingPayments] = useState(true);
-  const [paymentError, setPaymentError] = useState('');
-  const [processingPaymentId, setProcessingPaymentId] = useState<number | null>(null);
+  const [updatingVisibilityEventId, setUpdatingVisibilityEventId] = useState<number | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   const stats = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const soldThisMonth = events.reduce((sum, event) => {
+    const soldTotal = events.reduce((sum, event) => {
       const progress = resolveSeatProgress(event);
-      const saleDate = new Date(event.openSaleDate);
-      const isCurrentMonth =
-        !Number.isNaN(saleDate.getTime()) &&
-        saleDate.getMonth() === currentMonth &&
-        saleDate.getFullYear() === currentYear;
-      return isCurrentMonth ? sum + progress.soldSeats : sum;
+      return sum + progress.soldSeats;
     }, 0);
 
     const projectedRevenue = events.reduce((sum, event) => {
-      const eventRevenue = event.zones.reduce((zoneSum, zone) => zoneSum + Number(zone.price) * zone.seatCount, 0);
-      return sum + eventRevenue;
+      const soldRevenue = Number(event.soldRevenue);
+      return sum + (Number.isFinite(soldRevenue) ? soldRevenue : 0);
     }, 0);
 
-    const activeEvents = events.filter(event => event.status === 'ON_SALE').length;
+    const activeEvents = events.filter(event => resolveRuntimeStatus(event) === 'ON_SALE').length;
 
     return {
       totalEvents: events.length,
-      soldThisMonth,
+      soldTotal,
       projectedRevenue,
       activeEvents,
     };
   }, [events]);
 
-  const loadEvents = async (keyword?: string) => {
+  const loadEvents = async (keyword?: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const data = await fetchAdminEvents(keyword);
       setEvents(data);
       setError('');
+      setLastUpdatedAt(new Date());
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message || 'Không thể tải danh sách sự kiện');
@@ -129,65 +149,25 @@ export default function AdminEventDashboard() {
         setError('Không thể tải danh sách sự kiện');
       }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     loadEvents();
-    loadPendingPayments();
   }, []);
 
-  const loadPendingPayments = async () => {
-    try {
-      setLoadingPayments(true);
-      const data = await fetchPendingPaymentsForAdmin();
-      setPendingPayments(data);
-      setPaymentError('');
-    } catch (err) {
-      if (err instanceof Error) {
-        setPaymentError(err.message || 'Không thể tải danh sách thanh toán chờ duyệt');
-      } else {
-        setPaymentError('Không thể tải danh sách thanh toán chờ duyệt');
-      }
-    } finally {
-      setLoadingPayments(false);
-    }
-  };
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void loadEvents(searchKeyword, true);
+    }, POLL_INTERVAL_MS);
 
-  const handleApprovePayment = async (orderId: number) => {
-    const note = window.prompt('Ghi chú duyệt (không bắt buộc):') || undefined;
-    try {
-      setProcessingPaymentId(orderId);
-      await approvePayment(orderId, note);
-      await loadPendingPayments();
-    } catch (err) {
-      if (err instanceof Error) {
-        setPaymentError(err.message || 'Không thể duyệt thanh toán');
-      } else {
-        setPaymentError('Không thể duyệt thanh toán');
-      }
-    } finally {
-      setProcessingPaymentId(null);
-    }
-  };
-
-  const handleRejectPayment = async (orderId: number) => {
-    const note = window.prompt('Lý do từ chối (không bắt buộc):') || undefined;
-    try {
-      setProcessingPaymentId(orderId);
-      await rejectPayment(orderId, note);
-      await loadPendingPayments();
-    } catch (err) {
-      if (err instanceof Error) {
-        setPaymentError(err.message || 'Không thể từ chối thanh toán');
-      } else {
-        setPaymentError('Không thể từ chối thanh toán');
-      }
-    } finally {
-      setProcessingPaymentId(null);
-    }
-  };
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [searchKeyword]);
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,12 +195,89 @@ export default function AdminEventDashboard() {
     }
   };
 
+  const toUpdatePayload = (event: AdminEvent, overrides?: Partial<CreateAdminEventPayload>): CreateAdminEventPayload => {
+    // Legacy events may not have saleEndDate yet. Fallback keeps request valid.
+    const fallbackSaleEndDate = event.saleEndDate && !Number.isNaN(new Date(event.saleEndDate).getTime())
+      ? event.saleEndDate
+      : event.eventStartDate;
+
+    return {
+      name: event.name,
+      description: event.description,
+      location: event.location,
+      heroImageUrl: event.heroImageUrl,
+      thumbnailUrl: event.thumbnailUrl,
+      layoutMapUrl: event.layoutMapUrl,
+      openSaleDate: event.openSaleDate,
+      saleEndDate: fallbackSaleEndDate,
+      eventStartDate: event.eventStartDate,
+      seatHoldMinutes: event.seatHoldMinutes,
+      status: event.status,
+      publicVisible: event.publicVisible,
+      archived: event.archived,
+      zones: event.zones.map(zone => ({
+        name: zone.name,
+        price: Number(zone.price),
+        rowCount: zone.rowCount,
+        seatsPerRow: zone.seatsPerRow,
+        colorHex: zone.colorHex,
+        locationDescription: zone.locationDescription || undefined,
+      })),
+      ...overrides,
+    };
+  };
+
+  const handleSetPublic = async (event: AdminEvent) => {
+    if (event.publicVisible && !event.archived) {
+      return;
+    }
+
+    try {
+      setUpdatingVisibilityEventId(event.id);
+      await updateAdminEvent(event.id, toUpdatePayload(event, { publicVisible: true, archived: false }));
+      await loadEvents(searchKeyword, true);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'Không thể chuyển sự kiện sang Public');
+      } else {
+        setError('Không thể chuyển sự kiện sang Public');
+      }
+    } finally {
+      setUpdatingVisibilityEventId(null);
+    }
+  };
+
+  const handleSetArchive = async (event: AdminEvent) => {
+    if (event.archived) {
+      return;
+    }
+
+    try {
+      setUpdatingVisibilityEventId(event.id);
+      await updateAdminEvent(event.id, toUpdatePayload(event, { archived: true, publicVisible: false }));
+      await loadEvents(searchKeyword, true);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'Không thể lưu trữ sự kiện');
+      } else {
+        setError('Không thể lưu trữ sự kiện');
+      }
+    } finally {
+      setUpdatingVisibilityEventId(null);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-[1400px] font-sans text-slate-800">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-extrabold text-[#0f172a]">Quản lý sự kiện</h1>
           <p className="mt-2 text-sm text-slate-500">Danh sách sự kiện đang lưu trong hệ thống TicketRush.</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {lastUpdatedAt
+              ? `Đang cập nhật thời gian thực (mỗi ${POLL_INTERVAL_MS / 1000} giây) • Cập nhật lúc ${lastUpdatedAt.toLocaleTimeString('vi-VN')}`
+              : `Đang cập nhật thời gian thực (mỗi ${POLL_INTERVAL_MS / 1000} giây)`}
+          </p>
         </div>
 
         <button
@@ -246,15 +303,15 @@ export default function AdminEventDashboard() {
           <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-orange-100 text-orange-700">
             <Ticket className="h-4 w-4" />
           </div>
-          <p className="text-sm text-slate-500">Vé đã bán (tháng này)</p>
-          <p className="mt-1 text-3xl font-extrabold text-slate-900">{stats.soldThisMonth.toLocaleString('vi-VN')}</p>
+          <p className="text-sm text-slate-500">Vé đã bán</p>
+          <p className="mt-1 text-3xl font-extrabold text-slate-900">{stats.soldTotal.toLocaleString('vi-VN')}</p>
         </article>
 
         <article className="rounded-2xl border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur">
           <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
             <CircleDollarSign className="h-4 w-4" />
           </div>
-          <p className="text-sm text-slate-500">Doanh thu dự kiến</p>
+          <p className="text-sm text-slate-500">Tổng doanh thu (đã đặt)</p>
           <p className="mt-1 text-2xl font-extrabold text-slate-900">{formatCurrency(stats.projectedRevenue)}</p>
         </article>
 
@@ -304,6 +361,7 @@ export default function AdminEventDashboard() {
                 <th className="px-4 py-3">Tên sự kiện</th>
                 <th className="px-4 py-3">Địa điểm</th>
                 <th className="px-4 py-3">Trạng thái ghế</th>
+                <th className="px-4 py-3">Doanh thu</th>
                 <th className="px-4 py-3">Thời gian</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Tác vụ</th>
@@ -312,13 +370,13 @@ export default function AdminEventDashboard() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : events.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12">
+                  <td colSpan={9} className="px-4 py-12">
                     <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
                       <svg viewBox="0 0 200 120" className="mb-4 h-24 w-36 text-slate-300 opacity-50" aria-hidden="true">
                         <rect x="16" y="24" width="168" height="82" rx="12" fill="currentColor" opacity="0.18" />
@@ -342,7 +400,10 @@ export default function AdminEventDashboard() {
                 </tr>
               ) : (
                 events.map(event => {
+                  const runtimeStatus = resolveRuntimeStatus(event);
                   const progress = resolveSeatProgress(event);
+                  const isPublicActive = event.publicVisible && !event.archived;
+                  const isArchiveActive = event.archived;
 
                   return (
                     <tr key={event.id} className="border-t border-slate-200 hover:bg-slate-50">
@@ -362,24 +423,54 @@ export default function AdminEventDashboard() {
                             <span>{progress.ratio}%</span>
                           </div>
                           <div className="h-2 rounded-full bg-slate-200">
-                            <div className={`h-2 rounded-full transition-all ${progressClass(event.status)}`} style={{ width: `${progress.ratio}%` }} />
+                            <div className={`h-2 rounded-full transition-all ${progressClass(runtimeStatus)}`} style={{ width: `${progress.ratio}%` }} />
                           </div>
                           <p className="mt-1 text-[11px] text-slate-400">
                             {progress.estimated ? 'Ước tính theo trạng thái sự kiện' : 'Dựa trên dữ liệu bán thực tế'}
                           </p>
                         </div>
                       </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">{formatCurrency(Number(event.soldRevenue) || 0)}</td>
                       <td className="px-4 py-3 text-slate-600">
                         <p>Mở bán: {formatDate(event.openSaleDate)}</p>
+                        <p className="text-xs text-slate-500">Ngừng bán: {formatDate(event.saleEndDate)}</p>
                         <p className="text-xs text-slate-500">Diễn ra: {formatDate(event.eventStartDate)}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(event.status)}`}>
-                          {statusLabel(event.status)}
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(runtimeStatus)}`}>
+                          {statusLabel(runtimeStatus)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleSetPublic(event)}
+                            disabled={updatingVisibilityEventId === event.id || isPublicActive}
+                            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+                              isPublicActive
+                                ? 'border border-slate-300 bg-slate-100 text-slate-500'
+                                : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            } disabled:opacity-60`}
+                            title="Đưa sự kiện lên Public"
+                            aria-label="Đưa sự kiện lên Public"
+                          >
+                            Public
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleSetArchive(event)}
+                            disabled={updatingVisibilityEventId === event.id || isArchiveActive}
+                            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+                              isArchiveActive
+                                ? 'border border-slate-300 bg-slate-100 text-slate-500'
+                                : 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                            } disabled:opacity-60`}
+                            title="Lưu trữ sự kiện"
+                            aria-label="Lưu trữ sự kiện"
+                          >
+                            Archive
+                          </button>
                           <button
                             type="button"
                             onClick={() => setEditingEvent(event)}
@@ -439,101 +530,6 @@ export default function AdminEventDashboard() {
         </div>
       )}
 
-      <section className="mt-10 rounded-2xl border border-white/70 bg-white/90 p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-900">Duyệt thanh toán</h2>
-            <p className="mt-1 text-sm text-slate-500">Danh sách đơn hàng người dùng đã gửi thanh toán và đang chờ admin xác nhận.</p>
-          </div>
-          <button
-            type="button"
-            onClick={loadPendingPayments}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-orange-300 hover:text-orange-700"
-          >
-            Làm mới
-          </button>
-        </div>
-
-        {paymentError && (
-          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{paymentError}</p>
-        )}
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-[0.08em] text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Đơn hàng</th>
-                <th className="px-4 py-3">Người mua</th>
-                <th className="px-4 py-3">Sự kiện</th>
-                <th className="px-4 py-3">Ghế</th>
-                <th className="px-4 py-3">Ảnh chuyển khoản</th>
-                <th className="px-4 py-3">Tổng tiền</th>
-                <th className="px-4 py-3">Thời gian gửi</th>
-                <th className="px-4 py-3">Tác vụ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingPayments ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                    Đang tải danh sách chờ duyệt...
-                  </td>
-                </tr>
-              ) : pendingPayments.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                    Không có đơn hàng nào đang chờ duyệt.
-                  </td>
-                </tr>
-              ) : (
-                pendingPayments.map(order => (
-                  <tr key={order.orderId} className="border-t border-slate-200 hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-700">#{order.orderId}</td>
-                    <td className="px-4 py-3 text-slate-600">{order.username}</td>
-                    <td className="px-4 py-3 text-slate-600">{order.eventName}</td>
-                    <td className="px-4 py-3 text-slate-600">{order.seatCodes.join(', ')}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {order.paymentProofImageUrl ? (
-                        <a href={order.paymentProofImageUrl} target="_blank" rel="noreferrer" className="inline-block">
-                          <img
-                            src={order.paymentProofImageUrl}
-                            alt={`Minh chứng chuyển khoản đơn #${order.orderId}`}
-                            className="h-14 w-14 rounded-lg border border-slate-200 object-cover"
-                          />
-                        </a>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{formatCurrency(order.totalAmount)}</td>
-                    <td className="px-4 py-3 text-slate-600">{order.paymentRequestedAt ? formatDate(order.paymentRequestedAt) : '-'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={processingPaymentId === order.orderId}
-                          onClick={() => handleApprovePayment(order.orderId)}
-                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
-                        >
-                          Duyệt
-                        </button>
-                        <button
-                          type="button"
-                          disabled={processingPaymentId === order.orderId}
-                          onClick={() => handleRejectPayment(order.orderId)}
-                          className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                        >
-                          Từ chối
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </div>
   );
 }

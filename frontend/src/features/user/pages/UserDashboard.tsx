@@ -14,7 +14,7 @@ import {
   type DashboardMenuKey,
 } from '../data/dashboardMockData';
 import { getPublicEventDetail } from '../../events/services/eventService';
-import { fetchMyPayments, type PaymentOrder } from '../../order-payment/services/paymentService';
+import { fetchMyPayments, releaseHeldSeatsForPayment, type PaymentOrder } from '../../order-payment/services/paymentService';
 import {
   getPendingReservations,
   removePendingReservation,
@@ -87,6 +87,7 @@ export default function UserDashboard() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [ticketsError, setTicketsError] = useState('');
+  const [paymentsError, setPaymentsError] = useState('');
   const [eventsSearchKeyword, setEventsSearchKeyword] = useState('');
   const [eventsSearchSubmitToken, setEventsSearchSubmitToken] = useState(0);
   const [ticketsData, setTicketsData] = useState<TicketItem[]>([]);
@@ -281,6 +282,12 @@ export default function UserDashboard() {
             <h2 className="text-2xl font-bold text-white">Thanh toán ({pendingReservations.length} đơn giữ chỗ)</h2>
           </div>
 
+          {paymentsError && (
+            <div className="mb-4 rounded-xl border border-yellow-500/35 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-200">
+              {paymentsError}
+            </div>
+          )}
+
           {pendingReservations.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 px-4 py-8 text-center text-sm text-gray-300">
               Chưa có đơn giữ chỗ nào cần thanh toán.
@@ -319,7 +326,19 @@ export default function UserDashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
+                          try {
+                            await releaseHeldSeatsForPayment(item.eventId, item.seatIds);
+                            setPaymentsError('');
+                          } catch (err) {
+                            if (err instanceof Error) {
+                              setPaymentsError(err.message || 'Không thể xóa giữ ghế trên hệ thống.');
+                            } else {
+                              setPaymentsError('Không thể xóa giữ ghế trên hệ thống.');
+                            }
+                            return;
+                          }
+
                           removePendingReservation(item.id);
                           setPendingReservations(getPendingReservations());
                         }}

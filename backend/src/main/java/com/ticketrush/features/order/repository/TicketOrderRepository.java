@@ -6,10 +6,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.List;
 
 public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> {
+    interface EventOrderSalesSummary {
+        Long getEventId();
+        long getSoldSeatCount();
+        BigDecimal getSoldRevenue();
+    }
+
     Optional<TicketOrder> findByQueueId(String queueId);
 
     @Query("""
@@ -46,4 +53,16 @@ public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> 
         where o.id = :orderId
         """)
     Optional<TicketOrder> findDetailById(@Param("orderId") Long orderId);
+
+        @Query("""
+                select o.event.id as eventId,
+                             count(i.id) as soldSeatCount,
+                             coalesce(sum(i.price), 0) as soldRevenue
+                from TicketOrder o
+                join o.items i
+                where o.status = com.ticketrush.features.order.entity.OrderStatus.SUCCESS
+                    and o.paymentStatus <> :rejectedStatus
+                group by o.event.id
+                """)
+        List<EventOrderSalesSummary> summarizeEventSales(@Param("rejectedStatus") PaymentStatus rejectedStatus);
 }
