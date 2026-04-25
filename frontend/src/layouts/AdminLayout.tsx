@@ -1,24 +1,36 @@
-import { CalendarDays, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
+import { CalendarDays, CreditCard, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
+import { useMemo } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearAuthSession } from '../features/auth/utils/authStorage';
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { to: '/admin/events', label: 'Quản lý sự kiện', icon: CalendarDays },
-  { to: '/admin/users', label: 'Người dùng', icon: Users },
+  { to: '/admin/payments', label: 'Duyệt thanh toán', icon: CreditCard },
+  { to: '/admin/users', label: 'Quản lí người dùng', icon: Users },
   { to: '/admin/settings', label: 'Cài đặt', icon: Settings },
 ];
 
 function adminNavClass(isActive: boolean): string {
-  return `group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors duration-200 ${
+  return `group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
     isActive
       ? 'border-l-4 border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
-      : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
+      : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
   }`;
 }
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const todayText = useMemo(
+    () =>
+      new Date().toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }),
+    [],
+  );
 
   const handleLogout = () => {
     clearAuthSession();
@@ -26,11 +38,11 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800 md:h-screen md:flex-row md:overflow-hidden">
+    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-800 md:h-screen md:flex-row md:overflow-hidden">
       <aside className="flex w-full flex-col border-b border-slate-200 bg-white shadow-sm md:w-72 md:border-b-0 md:border-r">
-        <div className="border-b border-slate-200 px-6 py-5">
-          <p className="text-lg font-bold tracking-wide text-orange-600">TICKETRUSH ADMIN</p>
-          <p className="mt-1 text-xs text-slate-500">Bảng điều khiển</p>
+        <div className="border-b border-slate-200 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-5">
+          <p className="text-xl font-black tracking-[0.08em] text-orange-600">TICKETRUSH ADMIN</p>
+          <p className="mt-1 text-xs text-slate-500">Bảng điều khiển quản trị</p>
         </div>
 
         <nav className="flex-1 px-3 py-3 md:px-4 md:py-5">
@@ -61,12 +73,21 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-end border-b border-slate-200 bg-white px-4 shadow-sm md:px-6">
-          <div className="h-9 w-9 rounded-full bg-slate-200 shadow-sm" />
+      <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100">
+        <div className="pointer-events-none absolute -top-24 left-10 h-72 w-72 rounded-full bg-orange-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-10 h-72 w-72 rounded-full bg-sky-200/35 blur-3xl" />
+
+        <header className="relative z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur md:px-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Hôm nay</p>
+            <p className="text-sm font-semibold text-slate-700">{todayText}</p>
+          </div>
+          <div className="flex h-9 min-w-9 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-500 px-2 text-xs font-bold text-white shadow-lg">
+            AD
+          </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>

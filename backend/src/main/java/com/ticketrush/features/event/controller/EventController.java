@@ -36,7 +36,7 @@ public class EventController {
 
     @GetMapping("/{eventId}")
     public ResponseEntity<EventDto> getEventDetail(@PathVariable Long eventId) {
-        return ResponseEntity.ok(eventService.getEventDetail(eventId));
+        return ResponseEntity.ok(eventService.getPublicEventDetail(eventId));
     }
 
     @GetMapping("/{eventId}/seat-map")

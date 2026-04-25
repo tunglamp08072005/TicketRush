@@ -44,6 +44,8 @@ public class FlashSaleOrderService {
     }
 
     public FlashSaleOrderAcceptedResponse submitOrder(User user, FlashSaleOrderRequest request) {
+        ensureBookingProfileCompleted(user);
+
         Event event = eventRepository.findById(request.getEventId())
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
 
@@ -121,5 +123,14 @@ public class FlashSaleOrderService {
             }
         }
         return new ArrayList<>(orderedUnique);
+    }
+
+    private void ensureBookingProfileCompleted(User user) {
+        String fullName = user.getProfileText() == null ? "" : user.getProfileText().trim();
+        String phoneNumber = user.getPhoneNumber() == null ? "" : user.getPhoneNumber().trim();
+
+        if (fullName.isEmpty() || phoneNumber.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng cập nhật hồ sơ (họ và tên, số điện thoại) trước khi đặt vé");
+        }
     }
 }

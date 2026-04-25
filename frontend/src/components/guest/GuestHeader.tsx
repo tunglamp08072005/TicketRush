@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { clearAuthSession, getAuthSession } from '../../features/auth/utils/authStorage';
 import './GuestHeader.css';
 
 type GuestHeaderProps = {
@@ -20,6 +21,8 @@ export default function GuestHeader({
   const showSearch = activeTab === 'events';
   const navigate = useNavigate();
   const [internalSearchValue, setInternalSearchValue] = useState('');
+  const { token } = getAuthSession();
+  const isLoggedIn = Boolean(token);
 
   const resolvedValue = searchValue ?? internalSearchValue;
 
@@ -40,6 +43,11 @@ export default function GuestHeader({
     if (resolvedValue.trim()) {
       navigate('/events');
     }
+  };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate('/', { replace: true });
   };
 
   return (
@@ -76,12 +84,25 @@ export default function GuestHeader({
           </div>
 
           <div className="guest-auth-actions">
-            <Link to="/auth" className="guest-auth-button guest-auth-login">
-              Đăng nhập
-            </Link>
-            <Link to="/auth" className="guest-auth-button guest-auth-register">
-              Đăng ký
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link to="/user" className="guest-auth-button guest-auth-login">
+                  Vào trang của tôi
+                </Link>
+                <button type="button" className="guest-auth-button guest-auth-register" onClick={handleLogout}>
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/auth" className="guest-auth-button guest-auth-login">
+                  Đăng nhập
+                </Link>
+                <Link to="/auth" className="guest-auth-button guest-auth-register">
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -34,6 +34,9 @@ public class CreateEventRequest {
     @NotNull(message = "Open sale date is required")
     private LocalDateTime openSaleDate;
 
+    @NotNull(message = "Sale end date is required")
+    private LocalDateTime saleEndDate;
+
     @NotNull(message = "Event start date is required")
     private LocalDateTime eventStartDate;
 
@@ -48,6 +51,8 @@ public class CreateEventRequest {
     private List<CreateZoneRequest> zones;
 
     private Boolean featured;
+    private Boolean publicVisible;
+    private Boolean archived;
     private EventStatus status;
 
     public String getName() {
@@ -80,6 +85,14 @@ public class CreateEventRequest {
 
     public void setOpenSaleDate(LocalDateTime openSaleDate) {
         this.openSaleDate = openSaleDate;
+    }
+
+    public LocalDateTime getSaleEndDate() {
+        return saleEndDate;
+    }
+
+    public void setSaleEndDate(LocalDateTime saleEndDate) {
+        this.saleEndDate = saleEndDate;
     }
 
     public LocalDateTime getEventStartDate() {
@@ -136,6 +149,22 @@ public class CreateEventRequest {
 
     public void setFeatured(Boolean featured) {
         this.featured = featured;
+    }
+
+    public Boolean getPublicVisible() {
+        return publicVisible;
+    }
+
+    public void setPublicVisible(Boolean publicVisible) {
+        this.publicVisible = publicVisible;
+    }
+
+    public Boolean getArchived() {
+        return archived;
+    }
+
+    public void setArchived(Boolean archived) {
+        this.archived = archived;
     }
 
     public EventStatus getStatus() {

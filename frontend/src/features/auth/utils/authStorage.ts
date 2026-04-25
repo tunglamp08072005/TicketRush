@@ -1,18 +1,61 @@
 export type RoleType = 'USER' | 'ADMIN';
 
+type JwtPayload = {
+  exp?: number;
+};
+
+function decodeJwtPayload(token: string): JwtPayload | null {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const json = atob(padded);
+    return JSON.parse(json) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') {
+    return false;
+  }
+
+  const nowInSeconds = Date.now() / 1000;
+  return payload.exp <= nowInSeconds;
+}
+
+function normalizeStoredToken(token: string | null | undefined): string | null {
+  if (!token) {
+    return null;
+  }
+
+  return token.replace(/^Bearer\s+/i, '').trim();
+}
+
 export function normalizeAuthRole(role: string | null | undefined): RoleType {
   const normalized = (role || 'USER').toUpperCase().trim().replace(/^ROLE_/, '');
   return normalized === 'ADMIN' ? 'ADMIN' : 'USER';
 }
 
 export function setAuthSession(token: string, role: string, username?: string): void {
+  const normalizedToken = normalizeStoredToken(token);
   const normalizedRole = normalizeAuthRole(role);
 
-  localStorage.setItem('token', token);
+  if (!normalizedToken) {
+    return;
+  }
+
+  localStorage.setItem('token', normalizedToken);
   localStorage.setItem('role', normalizedRole);
 
   try {
-    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('token', normalizedToken);
     sessionStorage.setItem('role', normalizedRole);
   } catch {
     // Some browsers may restrict storage in private mode.
@@ -29,13 +72,31 @@ export function setAuthSession(token: string, role: string, username?: string): 
 }
 
 export function getAuthSession(): { token: string | null; role: RoleType | null; username: string | null } {
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const token = normalizeStoredToken(storedToken);
   const role = localStorage.getItem('role') || sessionStorage.getItem('role');
   const username = localStorage.getItem('username') || sessionStorage.getItem('username');
 
+  if (!token) {
+    return {
+      token: null,
+      role: null,
+      username: null,
+    };
+  }
+
+  if (isTokenExpired(token)) {
+    clearAuthSession();
+    return {
+      token: null,
+      role: null,
+      username: null,
+    };
+  }
+
   return {
     token,
-    role: role ? normalizeAuthRole(role) : null,
+    role: role ? normalizeAuthRole(role) : 'USER',
     username,
   };
 }

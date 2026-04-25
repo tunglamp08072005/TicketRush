@@ -23,10 +23,15 @@ export interface AdminEvent {
   thumbnailUrl: string;
   layoutMapUrl: string;
   openSaleDate: string;
+  saleEndDate: string;
   eventStartDate: string;
   seatHoldMinutes: number;
   status: AdminEventStatus;
+  publicVisible: boolean;
+  archived: boolean;
   totalSeatCount: number;
+  soldSeatCount: number;
+  soldRevenue: number;
   zones: AdminEventZone[];
 }
 
@@ -47,9 +52,12 @@ export interface CreateAdminEventPayload {
   thumbnailUrl: string;
   layoutMapUrl: string;
   openSaleDate: string;
+  saleEndDate: string;
   eventStartDate: string;
   seatHoldMinutes: number;
   status?: AdminEventStatus;
+  publicVisible?: boolean;
+  archived?: boolean;
   zones: CreateAdminEventZonePayload[];
 }
 

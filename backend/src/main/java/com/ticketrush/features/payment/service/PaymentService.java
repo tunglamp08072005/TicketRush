@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,6 +46,8 @@ public class PaymentService {
 
     @Transactional
     public PaymentOrderDto createCheckoutOrder(User user, Long eventId, List<Long> seatIds, MultipartFile paymentProofFile) {
+        ensureBookingProfileCompleted(user);
+
         if (seatIds == null || seatIds.isEmpty()) {
             throw new IllegalArgumentException("Bạn chưa chọn ghế để thanh toán");
         }
@@ -55,6 +58,8 @@ public class PaymentService {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
+
+        seatRepository.releaseExpiredLocksByEventId(event.getId(), LocalDateTime.now());
 
         List<Long> requestedSeatIds = seatIds.stream()
                 .filter(id -> id != null && id > 0)
@@ -78,7 +83,13 @@ public class PaymentService {
             if (!seat.getEvent().getId().equals(event.getId())) {
                 throw new IllegalArgumentException("Có ghế không thuộc sự kiện đã chọn");
             }
-            if (seat.getStatus() != SeatStatus.AVAILABLE) {
+
+            boolean available = seat.getStatus() == SeatStatus.AVAILABLE;
+            boolean lockedByCurrentUser = seat.getStatus() == SeatStatus.LOCKED
+                    && Objects.equals(seat.getLockedByUserId(), user.getId())
+                    && (seat.getLockedUntil() == null || seat.getLockedUntil().isAfter(LocalDateTime.now()));
+
+            if (!available && !lockedByCurrentUser) {
                 throw new IllegalArgumentException("Ghế " + seat.getSeatCode() + " không còn khả dụng");
             }
 
@@ -99,6 +110,101 @@ public class PaymentService {
 
         TicketOrder saved = ticketOrderRepository.save(order);
         return toDto(saved);
+    }
+
+    @Transactional
+    public com.ticketrush.features.payment.dto.SeatHoldResponseDto holdSeatsForCheckout(User user, Long eventId, List<Long> seatIds) {
+        ensureBookingProfileCompleted(user);
+
+        if (seatIds == null || seatIds.isEmpty()) {
+            throw new IllegalArgumentException("Bạn chưa chọn ghế để giữ chỗ");
+        }
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
+
+        List<Long> requestedSeatIds = seatIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+
+        List<Seat> seats = seatRepository.findAllByIdInForUpdate(requestedSeatIds);
+        validateSeatCoverage(requestedSeatIds, seats);
+
+        LocalDateTime now = LocalDateTime.now();
+        int holdMinutes = Math.max(1, event.getSeatHoldMinutes());
+        LocalDateTime lockedUntil = now.plusMinutes(holdMinutes);
+
+        for (Seat seat : seats) {
+            if (!Objects.equals(seat.getEvent().getId(), event.getId())) {
+                throw new IllegalArgumentException("Có ghế không thuộc sự kiện đã chọn");
+            }
+
+            if (seat.getStatus() == SeatStatus.SOLD) {
+                throw new IllegalArgumentException("Ghế " + seat.getSeatCode() + " đã bán");
+            }
+
+            boolean lockedByAnotherUser = seat.getStatus() == SeatStatus.LOCKED
+                    && !Objects.equals(seat.getLockedByUserId(), user.getId())
+                    && (seat.getLockedUntil() == null || seat.getLockedUntil().isAfter(now));
+
+            if (lockedByAnotherUser) {
+                throw new IllegalArgumentException("Ghế " + seat.getSeatCode() + " đang được người khác giữ");
+            }
+
+            seat.setStatus(SeatStatus.LOCKED);
+            seat.setLockedByUserId(user.getId());
+            seat.setLockedUntil(lockedUntil);
+        }
+
+        seatRepository.saveAll(seats);
+
+        List<String> seatCodes = seats.stream().map(Seat::getSeatCode).toList();
+        return new com.ticketrush.features.payment.dto.SeatHoldResponseDto(
+                event.getId(),
+                seatCodes,
+                lockedUntil,
+                holdMinutes
+        );
+    }
+
+    @Transactional
+    public com.ticketrush.features.payment.dto.SeatReleaseResponseDto releaseHeldSeats(User user, Long eventId, List<Long> seatIds) {
+        if (seatIds == null || seatIds.isEmpty()) {
+            throw new IllegalArgumentException("Bạn chưa chọn ghế để xóa giữ chỗ");
+        }
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
+
+        List<Long> requestedSeatIds = seatIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+
+        List<Seat> seats = seatRepository.findAllByIdInForUpdate(requestedSeatIds);
+        validateSeatCoverage(requestedSeatIds, seats);
+
+        List<String> releasedSeatCodes = new ArrayList<>();
+        for (Seat seat : seats) {
+            if (!Objects.equals(seat.getEvent().getId(), event.getId())) {
+                throw new IllegalArgumentException("Có ghế không thuộc sự kiện đã chọn");
+            }
+
+            if (seat.getStatus() == SeatStatus.LOCKED && Objects.equals(seat.getLockedByUserId(), user.getId())) {
+                seat.setStatus(SeatStatus.AVAILABLE);
+                seat.setLockedByUserId(null);
+                seat.setLockedUntil(null);
+                releasedSeatCodes.add(seat.getSeatCode());
+            }
+        }
+
+        seatRepository.saveAll(seats);
+
+        return new com.ticketrush.features.payment.dto.SeatReleaseResponseDto(
+                event.getId(),
+                releasedSeatCodes
+        );
     }
 
     @Transactional(readOnly = true)
@@ -162,6 +268,15 @@ public class PaymentService {
         }
         String trimmed = note.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void ensureBookingProfileCompleted(User user) {
+        String fullName = user.getProfileText() == null ? "" : user.getProfileText().trim();
+        String phoneNumber = user.getPhoneNumber() == null ? "" : user.getPhoneNumber().trim();
+
+        if (fullName.isEmpty() || phoneNumber.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng cập nhật hồ sơ (họ và tên, số điện thoại) trước khi đặt vé");
+        }
     }
 
     private void validateSeatCoverage(List<Long> requestedSeatIds, List<Seat> loadedSeats) {

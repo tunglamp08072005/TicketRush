@@ -34,6 +34,9 @@ public class Event {
     @Column(nullable = false)
     private LocalDateTime openSaleDate;
 
+    @Column
+    private LocalDateTime saleEndDate;
+
     @Column(nullable = false)
     private LocalDateTime eventStartDate;
 
@@ -52,6 +55,12 @@ public class Event {
     @Column(nullable = false)
     private boolean featured = true;
 
+    @Column
+    private Boolean publicVisible = Boolean.TRUE;
+
+    @Column
+    private Boolean archived = Boolean.FALSE;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EventStatus status = EventStatus.UPCOMING;
@@ -66,6 +75,12 @@ public class Event {
     public void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (publicVisible == null) {
+            publicVisible = Boolean.TRUE;
+        }
+        if (archived == null) {
+            archived = Boolean.FALSE;
         }
     }
 
@@ -114,6 +129,14 @@ public class Event {
         this.openSaleDate = openSaleDate;
     }
 
+    public LocalDateTime getSaleEndDate() {
+        return saleEndDate;
+    }
+
+    public void setSaleEndDate(LocalDateTime saleEndDate) {
+        this.saleEndDate = saleEndDate;
+    }
+
     public LocalDateTime getEventStartDate() {
         return eventStartDate;
     }
@@ -160,6 +183,22 @@ public class Event {
 
     public void setFeatured(boolean featured) {
         this.featured = featured;
+    }
+
+    public boolean isPublicVisible() {
+        return publicVisible == null || publicVisible;
+    }
+
+    public void setPublicVisible(boolean publicVisible) {
+        this.publicVisible = publicVisible;
+    }
+
+    public boolean isArchived() {
+        return Boolean.TRUE.equals(archived);
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
     }
 
     public EventStatus getStatus() {

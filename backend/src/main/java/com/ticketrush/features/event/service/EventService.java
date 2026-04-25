@@ -11,46 +11,59 @@ import com.ticketrush.features.event.entity.Seat;
 import com.ticketrush.features.event.entity.SeatStatus;
 import com.ticketrush.features.event.repository.EventRepository;
 import com.ticketrush.features.event.repository.SeatRepository;
+import com.ticketrush.features.order.repository.TicketOrderRepository;
+import com.ticketrush.features.payment.entity.PaymentStatus;
 import com.ticketrush.features.event.dto.SeatMapSeatDto;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class EventService {
 
     private final EventRepository eventRepository;
     private final SeatRepository seatRepository;
+    private final TicketOrderRepository ticketOrderRepository;
 
     @Value("${app.events.featured-limit:6}")
     private int featuredLimit;
 
-    public EventService(EventRepository eventRepository, SeatRepository seatRepository) {
+    public EventService(EventRepository eventRepository, SeatRepository seatRepository, TicketOrderRepository ticketOrderRepository) {
         this.eventRepository = eventRepository;
         this.seatRepository = seatRepository;
+        this.ticketOrderRepository = ticketOrderRepository;
     }
 
     @Transactional
     public List<EventDto> getAllEvents() {
+        syncEventPublicationState();
+        Map<Long, TicketOrderRepository.EventOrderSalesSummary> salesByEventId = loadOrderSalesByEventId();
         return eventRepository.findAllByOrderByOpenSaleDateDesc().stream()
-                .map(this::toDto)
+            .map(event -> toDto(event, salesByEventId))
                 .toList();
     }
 
     @Transactional
     public List<EventDto> searchEvents(String keyword) {
+        syncEventPublicationState();
         String normalizedKeyword = keyword == null ? null : keyword.trim();
         if (normalizedKeyword != null && normalizedKeyword.isEmpty()) {
             normalizedKeyword = null;
         }
 
+        Map<Long, TicketOrderRepository.EventOrderSalesSummary> salesByEventId = loadOrderSalesByEventId();
+
         return eventRepository.searchAllByKeyword(normalizedKeyword).stream()
-                .map(this::toDto)
+                .map(event -> toDto(event, salesByEventId))
                 .toList();
     }
 
@@ -60,7 +73,7 @@ public class EventService {
         applyEventRequest(event, request);
 
         Event saved = eventRepository.save(event);
-        return toDto(saved);
+        return toDto(saved, Map.of());
     }
 
     @Transactional
@@ -73,7 +86,7 @@ public class EventService {
         applyEventRequest(event, request);
 
         Event saved = eventRepository.save(event);
-        return toDto(saved);
+        return toDto(saved, Map.of());
     }
 
     @Transactional
@@ -85,34 +98,58 @@ public class EventService {
 
     @Transactional
     public List<EventDto> getFeaturedEvents() {
+        syncEventPublicationState();
         int max = Math.max(1, Math.min(featuredLimit, 20));
+        Map<Long, TicketOrderRepository.EventOrderSalesSummary> salesByEventId = loadOrderSalesByEventId();
         return eventRepository.findByFeaturedTrueAndStatusInOrderByOpenSaleDateAsc(
                         List.of(EventStatus.UPCOMING, EventStatus.ON_SALE)
                 ).stream()
                 .limit(max)
-                .map(this::toDto)
+            .map(event -> toDto(event, salesByEventId))
                 .toList();
     }
 
     @Transactional
     public List<EventDto> getUserEvents(String keyword) {
+        syncEventPublicationState();
+        Map<Long, TicketOrderRepository.EventOrderSalesSummary> salesByEventId = loadOrderSalesByEventId();
         if (keyword == null || keyword.trim().isEmpty()) {
-            return getAllEvents();
+            return eventRepository.findPublicVisibleEvents().stream()
+                    .map(event -> toDto(event, salesByEventId))
+                    .toList();
         }
-        return searchEvents(keyword);
+        String normalizedKeyword = keyword.trim();
+        return eventRepository.searchPublicVisibleByKeyword(normalizedKeyword).stream()
+                .map(event -> toDto(event, salesByEventId))
+                .toList();
     }
 
     @Transactional
-    public EventDto getEventDetail(Long eventId) {
-        Event event = eventRepository.findDetailById(eventId)
+    public EventDto getPublicEventDetail(Long eventId) {
+        syncEventPublicationState();
+        Event event = eventRepository.findPublicDetailById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
-        return toDto(event);
+        Map<Long, TicketOrderRepository.EventOrderSalesSummary> salesByEventId = loadOrderSalesByEventId();
+        return toDto(event, salesByEventId);
+    }
+
+    private Map<Long, TicketOrderRepository.EventOrderSalesSummary> loadOrderSalesByEventId() {
+        return ticketOrderRepository.summarizeEventSales(PaymentStatus.REJECTED).stream()
+                .collect(Collectors.toMap(TicketOrderRepository.EventOrderSalesSummary::getEventId, Function.identity()));
+    }
+
+    private void syncEventPublicationState() {
+        LocalDateTime now = LocalDateTime.now();
+        eventRepository.autoArchiveBySaleEndDate(now);
+        eventRepository.autoPublishByOpenSaleDate(now);
     }
 
     @Transactional
     public List<SeatMapSeatDto> getSeatMap(Long eventId) {
         eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+
+        seatRepository.releaseExpiredLocksByEventId(eventId, LocalDateTime.now());
 
         return seatRepository.findSeatMapByEventId(eventId).stream()
                 .map(this::toSeatMapDto)
@@ -124,16 +161,44 @@ public class EventService {
             throw new IllegalArgumentException("Open sale date must be before event start date");
         }
 
+        if (request.getOpenSaleDate().isAfter(request.getSaleEndDate())) {
+            throw new IllegalArgumentException("Sale end date must be after open sale date");
+        }
+
+        if (request.getSaleEndDate().isAfter(request.getEventStartDate())) {
+            throw new IllegalArgumentException("Sale end date must be before event start date");
+        }
+
         event.setName(request.getName().trim());
         event.setDescription(request.getDescription().trim());
         event.setLocation(request.getLocation().trim());
         event.setOpenSaleDate(request.getOpenSaleDate());
+        event.setSaleEndDate(request.getSaleEndDate());
         event.setEventStartDate(request.getEventStartDate());
         event.setHeroImageUrl(request.getHeroImageUrl().trim());
         event.setThumbnailUrl(request.getThumbnailUrl().trim());
         event.setLayoutMapUrl(request.getLayoutMapUrl().trim());
         event.setSeatHoldMinutes(request.getSeatHoldMinutes() == null ? 10 : request.getSeatHoldMinutes());
         event.setFeatured(request.getFeatured() == null || request.getFeatured());
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean autoArchived = !request.getSaleEndDate().isAfter(now);
+        boolean autoPublicVisible = !autoArchived && !request.getOpenSaleDate().isAfter(now);
+
+        boolean resolvedArchived = request.getArchived() != null
+            ? request.getArchived()
+            : autoArchived;
+        boolean resolvedPublicVisible = request.getPublicVisible() != null
+            ? request.getPublicVisible()
+            : autoPublicVisible;
+
+        // Archived events are always hidden from public listing.
+        if (resolvedArchived) {
+            resolvedPublicVisible = false;
+        }
+
+        event.setPublicVisible(resolvedPublicVisible);
+        event.setArchived(resolvedArchived);
         event.setStatus(request.getStatus() == null ? EventStatus.UPCOMING : request.getStatus());
 
         AtomicInteger zoneOrder = new AtomicInteger(0);
@@ -196,7 +261,7 @@ public class EventService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private EventDto toDto(Event event) {
+    private EventDto toDto(Event event, Map<Long, TicketOrderRepository.EventOrderSalesSummary> salesByEventId) {
         List<EventZoneDto> zoneDtos = event.getZones().stream()
                 .sorted((left, right) -> Integer.compare(left.getDisplayOrder(), right.getDisplayOrder()))
                 .map(zone -> new EventZoneDto(
@@ -212,6 +277,12 @@ public class EventService {
                 ))
                 .toList();
 
+            TicketOrderRepository.EventOrderSalesSummary salesSummary = salesByEventId.get(event.getId());
+            int soldSeatCount = salesSummary == null ? 0 : (int) Math.max(0, salesSummary.getSoldSeatCount());
+            BigDecimal soldRevenue = salesSummary == null || salesSummary.getSoldRevenue() == null
+                ? BigDecimal.ZERO
+                : salesSummary.getSoldRevenue();
+
         return new EventDto(
                 event.getId(),
                 event.getName(),
@@ -221,10 +292,15 @@ public class EventService {
                 event.getThumbnailUrl(),
                 event.getLayoutMapUrl(),
                 event.getOpenSaleDate(),
+                event.getSaleEndDate(),
                 event.getEventStartDate(),
                 event.getSeatHoldMinutes(),
                 event.getStatus(),
+                event.isPublicVisible(),
+                event.isArchived(),
                 zoneDtos.stream().mapToInt(EventZoneDto::getSeatCount).sum(),
+                soldSeatCount,
+                soldRevenue,
                 zoneDtos
         );
     }

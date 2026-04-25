@@ -72,6 +72,8 @@ public class SecurityConfig {
                     "/api/user/payments/**",
                     "/api/admin/payments",
                     "/api/admin/payments/**",
+                    "/api/admin/users",
+                    "/api/admin/users/**",
                     "/ws-ticket",
                     "/ws-ticket/**"
                 ).permitAll()

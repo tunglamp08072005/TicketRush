@@ -193,14 +193,38 @@
   font-weight: 700;
 }
 
+.seat-item.available {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(22, 163, 74, 0.16);
+  color: #bbf7d0;
+}
+
 .seat-item.available:hover {
-  border-color: rgba(99, 102, 241, 0.8);
+  border-color: rgba(34, 197, 94, 0.95);
+  background: rgba(22, 163, 74, 0.24);
+}
+
+.seat-item.locked {
+  border-color: rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+}
+
+.seat-item.sold {
+  border-color: rgba(239, 68, 68, 0.72);
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
 }
 
 .seat-item.locked,
 .seat-item.sold {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.95;
+}
+
+.seat-item.locked:disabled,
+.seat-item.sold:disabled {
+  opacity: 0.95;
 }
 
 .seat-item.selected {
