@@ -21,9 +21,12 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -85,9 +88,8 @@ public class EventService {
         Event event = eventRepository.findDetailById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
 
-        event.getZones().clear();
-        eventRepository.saveAndFlush(event);
-        applyEventRequest(event, request);
+        applyEventFields(event, request);
+        syncZonesForUpdate(event, request.getZones());
 
         Event saved = eventRepository.save(event);
         return toDto(saved, Map.of());
@@ -97,6 +99,14 @@ public class EventService {
     public void deleteEvent(Long id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+
+        List<com.ticketrush.features.order.entity.TicketOrder> relatedOrders =
+                ticketOrderRepository.findAllByEventIdWithItems(id);
+        if (!relatedOrders.isEmpty()) {
+            ticketOrderRepository.deleteAll(relatedOrders);
+            ticketOrderRepository.flush();
+        }
+
         eventRepository.delete(event);
     }
 
@@ -161,6 +171,13 @@ public class EventService {
     }
 
     private void applyEventRequest(Event event, CreateEventRequest request) {
+        applyEventFields(event, request);
+
+        AtomicInteger zoneOrder = new AtomicInteger(0);
+        request.getZones().forEach(zoneRequest -> event.addZone(buildZone(event, zoneRequest, zoneOrder.getAndIncrement())));
+    }
+
+    private void applyEventFields(Event event, CreateEventRequest request) {
         if (request.getOpenSaleDate().isAfter(request.getEventStartDate())) {
             throw new IllegalArgumentException("Open sale date must be before event start date");
         }
@@ -188,14 +205,13 @@ public class EventService {
 
         LocalDateTime now = LocalDateTime.now();
         boolean autoArchived = !request.getSaleEndDate().isAfter(now);
-        boolean autoPublicVisible = !autoArchived && !request.getOpenSaleDate().isAfter(now);
 
         boolean resolvedArchived = request.getArchived() != null
             ? request.getArchived()
             : autoArchived;
         boolean resolvedPublicVisible = request.getPublicVisible() != null
             ? request.getPublicVisible()
-            : autoPublicVisible;
+            : !resolvedArchived;
 
         // Archived events are always hidden from public listing.
         if (resolvedArchived) {
@@ -205,9 +221,6 @@ public class EventService {
         event.setPublicVisible(resolvedPublicVisible);
         event.setArchived(resolvedArchived);
         event.setStatus(request.getStatus() == null ? EventStatus.UPCOMING : request.getStatus());
-
-        AtomicInteger zoneOrder = new AtomicInteger(0);
-        request.getZones().forEach(zoneRequest -> event.addZone(buildZone(event, zoneRequest, zoneOrder.getAndIncrement())));
     }
 
     private EventZone buildZone(Event event, CreateZoneRequest request, int displayOrder) {
@@ -231,6 +244,80 @@ public class EventService {
         }
 
         return zone;
+    }
+
+    private void syncZonesForUpdate(Event event, List<CreateZoneRequest> requestedZones) {
+        Map<Long, EventZone> existingZonesById = event.getZones().stream()
+                .filter(zone -> zone.getId() != null)
+                .collect(Collectors.toMap(EventZone::getId, Function.identity()));
+        Set<Long> requestedExistingZoneIds = new HashSet<>();
+        AtomicInteger zoneOrder = new AtomicInteger(0);
+
+        for (CreateZoneRequest zoneRequest : requestedZones) {
+            Long zoneId = zoneRequest.getId();
+            if (zoneId != null) {
+                EventZone existingZone = existingZonesById.get(zoneId);
+                if (existingZone == null) {
+                    throw new IllegalArgumentException("Zone " + zoneId + " not found in event");
+                }
+
+                requestedExistingZoneIds.add(zoneId);
+                updateExistingZone(existingZone, zoneRequest, zoneOrder.getAndIncrement());
+                continue;
+            }
+
+            event.addZone(buildZone(event, zoneRequest, zoneOrder.getAndIncrement()));
+        }
+
+        List<EventZone> zonesToRemove = event.getZones().stream()
+                .filter(zone -> zone.getId() != null && !requestedExistingZoneIds.contains(zone.getId()))
+                .toList();
+
+        if (!zonesToRemove.isEmpty()) {
+            throw new IllegalArgumentException("Deleting existing zones is not supported because seats may already be referenced by orders");
+        }
+    }
+
+    private void updateExistingZone(EventZone zone, CreateZoneRequest request, int displayOrder) {
+        int oldRowCount = zone.getRowCount();
+        int oldSeatsPerRow = zone.getSeatsPerRow();
+        int newRowCount = request.getRowCount();
+        int newSeatsPerRow = request.getSeatsPerRow();
+
+        if (newRowCount < oldRowCount || newSeatsPerRow < oldSeatsPerRow) {
+            throw new IllegalArgumentException("Cannot reduce row count or seats per row for an existing zone");
+        }
+
+        zone.setName(request.getName().trim());
+        zone.setColorHex(request.getColorHex().trim().toUpperCase(Locale.ROOT));
+        zone.setLocationDescription(normalizeLocationDescription(request.getLocationDescription()));
+        zone.setPrice(request.getPrice());
+        zone.setDisplayOrder(displayOrder);
+        zone.setRowCount(newRowCount);
+        zone.setSeatsPerRow(newSeatsPerRow);
+
+        Map<String, Seat> seatsByRowAndNumber = new HashMap<>();
+        for (Seat seat : zone.getSeats()) {
+            seat.setPrice(request.getPrice());
+            seat.setZone(zone);
+            seat.setEvent(zone.getEvent());
+            seatsByRowAndNumber.put(seatKey(seat.getRowLabel(), seat.getSeatNumber()), seat);
+        }
+
+        for (int rowIndex = 0; rowIndex < newRowCount; rowIndex++) {
+            String rowLabel = String.valueOf((char) ('A' + rowIndex));
+            for (int seatNumber = 1; seatNumber <= newSeatsPerRow; seatNumber++) {
+                if (seatsByRowAndNumber.containsKey(seatKey(rowLabel, seatNumber))) {
+                    continue;
+                }
+
+                zone.addSeat(buildSeat(zone.getEvent(), zone, rowLabel, seatNumber, request.getPrice()));
+            }
+        }
+    }
+
+    private String seatKey(String rowLabel, int seatNumber) {
+        return rowLabel + "#" + seatNumber;
     }
 
     private Seat buildSeat(Event event, EventZone zone, String rowLabel, int seatNumber, BigDecimal price) {

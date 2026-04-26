@@ -29,6 +29,17 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     @Query("select s.id from Seat s where s.event.id = :eventId and s.status = :status")
     List<Long> findSeatIdsByEventIdAndStatus(@Param("eventId") Long eventId, @Param("status") SeatStatus status);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select s
+            from Seat s
+            join fetch s.event e
+            where s.status = com.ticketrush.features.event.entity.SeatStatus.LOCKED
+                and s.lockedUntil is not null
+                and s.lockedUntil <= :now
+            """)
+    List<Seat> findAllExpiredLockedSeatsForUpdate(@Param("now") java.time.LocalDateTime now);
+
         @Modifying
         @Query("""
                         update Seat s

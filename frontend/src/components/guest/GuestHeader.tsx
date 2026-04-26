@@ -4,7 +4,7 @@ import { clearAuthSession, getAuthSession } from '../../features/auth/utils/auth
 import './GuestHeader.css';
 
 type GuestHeaderProps = {
-  activeTab: 'home' | 'events';
+  activeTab: 'home' | 'events' | 'support';
   searchValue?: string;
   onSearchValueChange?: (value: string) => void;
   onSearchSubmit?: () => void | Promise<void>;
@@ -121,6 +121,12 @@ export default function GuestHeader({
               className={`guest-nav-link ${activeTab === 'events' ? 'active' : ''}`}
             >
               Sự kiện
+            </Link>
+            <Link
+              to="/support"
+              className={`guest-nav-link ${activeTab === 'support' ? 'active' : ''}`}
+            >
+              Hỗ trợ
             </Link>
           </nav>
         </div>

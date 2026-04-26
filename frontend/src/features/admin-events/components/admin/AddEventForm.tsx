@@ -399,6 +399,7 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
     }
 
     const normalizedZones: CreateAdminEventZonePayload[] = zones.map(zone => ({
+      id: isEditMode ? zone.id : undefined,
       name: zone.name.trim(),
       price: Number(zone.price),
       rowCount: zone.rowCount,

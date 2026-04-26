@@ -22,6 +22,14 @@ public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> 
     @Query("""
         select distinct o
         from TicketOrder o
+        left join fetch o.items i
+        where o.event.id = :eventId
+        """)
+    List<TicketOrder> findAllByEventIdWithItems(@Param("eventId") Long eventId);
+
+    @Query("""
+        select distinct o
+        from TicketOrder o
         left join fetch o.event
         left join fetch o.user
         left join fetch o.items i

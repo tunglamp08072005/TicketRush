@@ -61,6 +61,7 @@ public class SecurityConfig {
                     "/api/auth/password/reset",
                     "/api/user/profile",
                     "/api/user/profile/**",
+                    "/api/uploads/**",
                     "/api/events/featured",
                     "/api/events",
                     "/api/events/**",

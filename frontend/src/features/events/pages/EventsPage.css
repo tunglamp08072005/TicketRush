@@ -259,12 +259,14 @@
   display: grid;
   align-items: start;
   justify-items: center;
-  padding-top: 160px;
+  padding: 96px 1rem 24px;
+  overflow-y: auto;
   z-index: 110;
 }
 
 .events-filter-panel {
   width: min(920px, calc(100% - 2rem));
+  max-height: calc(100vh - 120px);
   border-radius: 14px;
   background: #ecedef;
   color: #1f2937;
@@ -272,6 +274,7 @@
   display: grid;
   gap: 0.84rem;
   box-shadow: 0 28px 66px rgba(0, 0, 0, 0.36);
+  overflow-y: auto;
 }
 
 .events-date-panel {
@@ -476,6 +479,12 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.66rem;
+  position: sticky;
+  bottom: 0;
+  background: #ecedef;
+  padding-top: 0.6rem;
+  margin-top: 0.2rem;
+  border-top: 1px solid rgba(184, 190, 201, 0.8);
 }
 
 .events-filter-reset,
@@ -562,7 +571,7 @@
   }
 
   .events-filter-overlay {
-    padding-top: 120px;
+    padding: 88px 0.8rem 20px;
   }
 
   .events-filter-actions {
@@ -590,5 +599,6 @@
 
   .events-filter-panel {
     padding: 0.8rem;
+    max-height: calc(100vh - 108px);
   }
 }

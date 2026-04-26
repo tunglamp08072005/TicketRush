@@ -10,6 +10,8 @@ import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 
 public class CreateZoneRequest {
+    private Long id;
+
     @NotBlank(message = "Zone name is required")
     private String name;
 
@@ -32,6 +34,14 @@ public class CreateZoneRequest {
     private String colorHex;
 
     private String locationDescription;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getName() {
         return name;
