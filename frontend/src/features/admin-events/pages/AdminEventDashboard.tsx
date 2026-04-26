@@ -208,7 +208,7 @@ export default function AdminEventDashboard() {
       openSaleDate: event.openSaleDate,
       saleEndDate: fallbackSaleEndDate,
       eventStartDate: event.eventStartDate,
-      seatHoldMinutes: event.seatHoldMinutes,
+      category: event.category,
       status: event.status,
       publicVisible: event.publicVisible,
       archived: event.archived,

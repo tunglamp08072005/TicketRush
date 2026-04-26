@@ -5,6 +5,7 @@ import com.ticketrush.features.event.dto.EventDto;
 import com.ticketrush.features.event.dto.EventZoneDto;
 import com.ticketrush.features.event.dto.CreateZoneRequest;
 import com.ticketrush.features.event.entity.Event;
+import com.ticketrush.features.event.entity.EventCategory;
 import com.ticketrush.features.event.entity.EventZone;
 import com.ticketrush.features.event.entity.EventStatus;
 import com.ticketrush.features.event.entity.Seat;
@@ -36,6 +37,9 @@ public class EventService {
 
     @Value("${app.events.featured-limit:6}")
     private int featuredLimit;
+
+    @Value("${app.seats.hold-minutes:10}")
+    private int defaultSeatHoldMinutes;
 
     public EventService(EventRepository eventRepository, SeatRepository seatRepository, TicketOrderRepository ticketOrderRepository) {
         this.eventRepository = eventRepository;
@@ -178,7 +182,8 @@ public class EventService {
         event.setHeroImageUrl(request.getHeroImageUrl().trim());
         event.setThumbnailUrl(request.getThumbnailUrl().trim());
         event.setLayoutMapUrl(request.getLayoutMapUrl().trim());
-        event.setSeatHoldMinutes(request.getSeatHoldMinutes() == null ? 10 : request.getSeatHoldMinutes());
+        event.setSeatHoldMinutes(Math.max(1, defaultSeatHoldMinutes));
+        event.setCategory(request.getCategory() == null ? EventCategory.KHAC : request.getCategory());
         event.setFeatured(request.getFeatured() == null || request.getFeatured());
 
         LocalDateTime now = LocalDateTime.now();
@@ -295,6 +300,7 @@ public class EventService {
                 event.getSaleEndDate(),
                 event.getEventStartDate(),
                 event.getSeatHoldMinutes(),
+                event.getCategory(),
                 event.getStatus(),
                 event.isPublicVisible(),
                 event.isArchived(),

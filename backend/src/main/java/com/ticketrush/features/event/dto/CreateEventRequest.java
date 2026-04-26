@@ -1,10 +1,9 @@
 package com.ticketrush.features.event.dto;
 
 import com.ticketrush.features.event.entity.EventStatus;
+import com.ticketrush.features.event.entity.EventCategory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -40,10 +39,7 @@ public class CreateEventRequest {
     @NotNull(message = "Event start date is required")
     private LocalDateTime eventStartDate;
 
-    @NotNull(message = "Seat hold duration is required")
-    @Min(value = 1, message = "Seat hold duration must be at least 1 minute")
-    @Max(value = 120, message = "Seat hold duration must not exceed 120 minutes")
-    private Integer seatHoldMinutes;
+    private EventCategory category;
 
     @NotNull(message = "At least one zone is required")
     @Size(min = 1, message = "At least one zone is required")
@@ -135,12 +131,12 @@ public class CreateEventRequest {
         this.layoutMapUrl = layoutMapUrl;
     }
 
-    public Integer getSeatHoldMinutes() {
-        return seatHoldMinutes;
+    public EventCategory getCategory() {
+        return category;
     }
 
-    public void setSeatHoldMinutes(Integer seatHoldMinutes) {
-        this.seatHoldMinutes = seatHoldMinutes;
+    public void setCategory(EventCategory category) {
+        this.category = category;
     }
 
     public Boolean getFeatured() {

@@ -15,6 +15,7 @@ import com.ticketrush.features.event.repository.EventRepository;
 import com.ticketrush.features.event.repository.SeatRepository;
 import com.ticketrush.features.order.repository.TicketOrderRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -32,6 +33,9 @@ import java.util.UUID;
 
 @Service
 public class PaymentService {
+
+    @Value("${app.seats.hold-minutes:10}")
+    private int defaultSeatHoldMinutes;
 
     private final EventRepository eventRepository;
     private final SeatRepository seatRepository;
@@ -73,7 +77,7 @@ public class PaymentService {
                 .distinct()
                 .toList();
 
-        List<Seat> seats = seatRepository.findAllByIdInForUpdate(requestedSeatIds);
+        List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, requestedSeatIds);
         validateSeatCoverage(requestedSeatIds, seats);
 
         BigDecimal total = BigDecimal.ZERO;
@@ -131,16 +135,18 @@ public class PaymentService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
 
+        seatRepository.releaseExpiredLocksByEventId(event.getId(), LocalDateTime.now());
+
         List<Long> requestedSeatIds = seatIds.stream()
                 .filter(id -> id != null && id > 0)
                 .distinct()
                 .toList();
 
-        List<Seat> seats = seatRepository.findAllByIdInForUpdate(requestedSeatIds);
+        List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, requestedSeatIds);
         validateSeatCoverage(requestedSeatIds, seats);
 
         LocalDateTime now = LocalDateTime.now();
-        int holdMinutes = Math.max(1, event.getSeatHoldMinutes());
+        int holdMinutes = Math.max(1, defaultSeatHoldMinutes);
         LocalDateTime lockedUntil = now.plusMinutes(holdMinutes);
 
         for (Seat seat : seats) {
@@ -191,7 +197,7 @@ public class PaymentService {
                 .distinct()
                 .toList();
 
-        List<Seat> seats = seatRepository.findAllByIdInForUpdate(requestedSeatIds);
+        List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, requestedSeatIds);
         validateSeatCoverage(requestedSeatIds, seats);
 
         List<String> releasedSeatCodes = new ArrayList<>();

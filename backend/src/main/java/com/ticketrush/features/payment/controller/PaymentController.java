@@ -53,7 +53,7 @@ public class PaymentController {
     ) {
         try {
             User user = resolveUser(authorizationHeader);
-            virtualQueueService.assertAdmitted(eventId, user.getId(), queueToken);
+            virtualQueueService.assertAdmittedAndRefresh(eventId, user.getId(), queueToken);
             List<Long> seatIds = Arrays.stream(seatIdsRaw.split(","))
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
@@ -80,7 +80,7 @@ public class PaymentController {
     ) {
         try {
             User user = resolveUser(authorizationHeader);
-            virtualQueueService.assertAdmitted(eventId, user.getId(), queueToken);
+            virtualQueueService.assertAdmittedAndRefresh(eventId, user.getId(), queueToken);
             List<Long> seatIds = Arrays.stream(seatIdsRaw.split(","))
                     .map(String::trim)
                     .filter(value -> !value.isBlank())
@@ -88,7 +88,6 @@ public class PaymentController {
                     .toList();
 
             SeatHoldResponseDto response = paymentService.holdSeatsForCheckout(user, eventId, seatIds);
-            virtualQueueService.releaseAdmission(eventId, user.getId(), queueToken);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());

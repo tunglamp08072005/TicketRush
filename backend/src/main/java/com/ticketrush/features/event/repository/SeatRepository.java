@@ -23,8 +23,8 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     }
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from Seat s where s.id in :seatIds")
-    List<Seat> findAllByIdInForUpdate(@Param("seatIds") List<Long> seatIds);
+    @Query("select s from Seat s where s.event.id = :eventId and s.id in :seatIds order by s.id asc")
+    List<Seat> findAllByEventIdAndIdInForUpdate(@Param("eventId") Long eventId, @Param("seatIds") List<Long> seatIds);
 
     @Query("select s.id from Seat s where s.event.id = :eventId and s.status = :status")
     List<Long> findSeatIdsByEventIdAndStatus(@Param("eventId") Long eventId, @Param("status") SeatStatus status);
@@ -41,6 +41,18 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
                             and s.lockedUntil <= :now
                         """)
         int releaseExpiredLocksByEventId(@Param("eventId") Long eventId, @Param("now") java.time.LocalDateTime now);
+
+        @Modifying
+        @Query("""
+                        update Seat s
+                        set s.status = com.ticketrush.features.event.entity.SeatStatus.AVAILABLE,
+                                s.lockedByUserId = null,
+                                s.lockedUntil = null
+                        where s.status = com.ticketrush.features.event.entity.SeatStatus.LOCKED
+                            and s.lockedUntil is not null
+                            and s.lockedUntil <= :now
+                        """)
+        int releaseExpiredLocks(@Param("now") java.time.LocalDateTime now);
 
     @Query("""
             select s

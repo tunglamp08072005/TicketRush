@@ -7,7 +7,6 @@ import { getMyProfile } from '../../user/services/userProfileService';
 import { connectSeatRealtime, type SeatRealtimeUpdate } from '../../order-payment/realtime/realtimeSeatClient';
 import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
 import {
-  clearAllQueueTokensInSession,
   clearQueueTokenInSession,
   getQueueTokenFromSession,
   setQueueAdmittedUntilInSession,
@@ -249,16 +248,8 @@ export default function EventSeatBookingPage() {
         });
     }, HEARTBEAT_INTERVAL_MS);
 
-    const handleBeforeUnload = () => {
-      sendVirtualQueueReleaseBeacon(id, queueToken);
-      clearQueueTokenInSession(id);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [eventId, isLoggedIn, queueToken]);
 
@@ -407,7 +398,6 @@ export default function EventSeatBookingPage() {
 
       setSeatError('');
       setSelectedSeatIds([]);
-      clearAllQueueTokensInSession();
 
       navigate('/user', {
         state: {
@@ -459,113 +449,113 @@ export default function EventSeatBookingPage() {
             ) : null}
 
             <section className="seat-booking-panel">
-              <h2>Chọn ghế</h2>
-              {seatLoading && <p className="seat-booking-feedback">Đang tải sơ đồ ghế...</p>}
-              {seatError && !seatLoading && <p className="seat-booking-feedback seat-booking-error">{seatError}</p>}
+                <h2>Chọn ghế</h2>
+                {seatLoading && <p className="seat-booking-feedback">Đang tải sơ đồ ghế...</p>}
+                {seatError && !seatLoading && <p className="seat-booking-feedback seat-booking-error">{seatError}</p>}
 
-              {!seatLoading && !seatError ? (
-                <>
-                  <div className="seat-legend">
-                    <span><i className="seat-dot available" /> Còn trống</span>
-                    <span><i className="seat-dot selected" /> Đang chọn</span>
-                    <span><i className="seat-dot locked" /> Đang giữ</span>
-                    <span><i className="seat-dot sold" /> Đã bán</span>
-                  </div>
-
-                  <div className="seat-zone-list">
-                    {seatGroups.map(group => (
-                      <section key={group.zoneId} className="seat-zone-card">
-                        <header>
-                          <h3>
-                            {group.zoneName}
-                            <span>{group.zoneCode}</span>
-                          </h3>
-                          <b style={{ color: group.zoneColorHex }}>{group.zoneColorHex}</b>
-                        </header>
-
-                        <div className="seat-grid">
-                          {group.seats.map(seat => {
-                            const isSelected = selectedSeatIds.includes(seat.id);
-                            const baseClass = seat.status.toLowerCase();
-
-                            return (
-                              <button
-                                key={seat.id}
-                                type="button"
-                                className={`seat-item ${baseClass} ${isSelected ? 'selected' : ''}`.trim()}
-                                disabled={seat.status !== 'AVAILABLE' || !canBookSeats}
-                                onClick={() => toggleSeat(seat)}
-                                title={`${seat.seatCode} - ${formatVnd(seat.price)}`}
-                              >
-                                {seat.seatCode}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-
-                  {!isLoggedIn ? (
-                    <div className="seat-auth-note">
-                      <p>Bạn cần đăng nhập để chọn ghế và thanh toán.</p>
-                      <Link to={`/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`} className="seat-booking-primary">Đăng nhập</Link>
+                {!seatLoading && !seatError ? (
+                  <>
+                    <div className="seat-legend">
+                      <span><i className="seat-dot available" /> Còn trống</span>
+                      <span><i className="seat-dot selected" /> Đang chọn</span>
+                      <span><i className="seat-dot locked" /> Đang giữ</span>
+                      <span><i className="seat-dot sold" /> Đã bán</span>
                     </div>
-                  ) : profileChecking ? (
-                    <div className="seat-auth-note">
-                      <p>Đang kiểm tra hồ sơ người dùng...</p>
+
+                    <div className="seat-zone-list">
+                      {seatGroups.map(group => (
+                        <section key={group.zoneId} className="seat-zone-card">
+                          <header>
+                            <h3>
+                              {group.zoneName}
+                              <span>{group.zoneCode}</span>
+                            </h3>
+                            <b style={{ color: group.zoneColorHex }}>{group.zoneColorHex}</b>
+                          </header>
+
+                          <div className="seat-grid">
+                            {group.seats.map(seat => {
+                              const isSelected = selectedSeatIds.includes(seat.id);
+                              const baseClass = seat.status.toLowerCase();
+
+                              return (
+                                <button
+                                  key={seat.id}
+                                  type="button"
+                                  className={`seat-item ${baseClass} ${isSelected ? 'selected' : ''}`.trim()}
+                                  disabled={seat.status !== 'AVAILABLE' || !canBookSeats}
+                                  onClick={() => toggleSeat(seat)}
+                                  title={`${seat.seatCode} - ${formatVnd(seat.price)}`}
+                                >
+                                  {seat.seatCode}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
                     </div>
-                  ) : !profileEligible ? (
-                    <div className="seat-auth-note">
-                      <p>Bạn cần cập nhật Họ và tên + Số điện thoại trong hồ sơ trước khi đặt vé.</p>
-                      <button
-                        type="button"
-                        className="seat-booking-primary"
-                        onClick={() => navigate('/user', {
-                          state: {
-                            activeMenu: 'account',
-                            queueEventId: eventDetail.id,
-                            returnToBookingPath: `/user/events/${eventDetail.id}/booking`,
-                          },
-                        })}
-                      >
-                        Cập nhật hồ sơ
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="seat-checkout-box">
-                      <div className="seat-checkout-summary">
-                        <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Chưa chọn ghế'}</p>
-                        <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+
+                    {!isLoggedIn ? (
+                      <div className="seat-auth-note">
+                        <p>Bạn cần đăng nhập để chọn ghế và thanh toán.</p>
+                        <Link to={`/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`} className="seat-booking-primary">Đăng nhập</Link>
                       </div>
-
-                      <p className="seat-checkout-note">
-                        Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ trong {holdDurationLabel}.
-                      </p>
-
-                      <div className="seat-booking-action-row">
+                    ) : profileChecking ? (
+                      <div className="seat-auth-note">
+                        <p>Đang kiểm tra hồ sơ người dùng...</p>
+                      </div>
+                    ) : !profileEligible ? (
+                      <div className="seat-auth-note">
+                        <p>Bạn cần cập nhật Họ và tên + Số điện thoại trong hồ sơ trước khi đặt vé.</p>
                         <button
                           type="button"
                           className="seat-booking-primary"
-                          disabled={selectedSeatIds.length === 0}
-                          onClick={handleBookAndPayNow}
+                          onClick={() => navigate('/user', {
+                            state: {
+                              activeMenu: 'account',
+                              queueEventId: eventDetail.id,
+                              returnToBookingPath: `/user/events/${eventDetail.id}/booking`,
+                            },
+                          })}
                         >
-                          Đặt chỗ và thanh toán ngay
-                        </button>
-
-                        <button
-                          type="button"
-                          className="seat-booking-secondary"
-                          disabled={selectedSeatIds.length === 0}
-                          onClick={() => void handleHoldSeat()}
-                        >
-                          Giữ chỗ {holdDurationLabel}
+                          Cập nhật hồ sơ
                         </button>
                       </div>
-                    </div>
-                  )}
-                </>
-              ) : null}
+                    ) : (
+                      <div className="seat-checkout-box">
+                        <div className="seat-checkout-summary">
+                          <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Chưa chọn ghế'}</p>
+                          <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+                        </div>
+
+                        <p className="seat-checkout-note">
+                          Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ trong {holdDurationLabel}.
+                        </p>
+
+                        <div className="seat-booking-action-row">
+                          <button
+                            type="button"
+                            className="seat-booking-primary"
+                            disabled={selectedSeatIds.length === 0}
+                            onClick={handleBookAndPayNow}
+                          >
+                            Đặt chỗ và thanh toán ngay
+                          </button>
+
+                          <button
+                            type="button"
+                            className="seat-booking-secondary"
+                            disabled={selectedSeatIds.length === 0}
+                            onClick={() => void handleHoldSeat()}
+                          >
+                            Giữ chỗ {holdDurationLabel}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
             </section>
           </article>
         ) : null}

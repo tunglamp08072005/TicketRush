@@ -2,12 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { checkoutPayment } from '../../order-payment/services/paymentService';
-import { removePendingReservation } from '../../order-payment/services/pendingReservationService';
+import { getPendingReservations, removePendingReservation } from '../../order-payment/services/pendingReservationService';
 import { getPublicEventDetail, getPublicSeatMap, type SeatMapSeat, type UserEventDetail } from '../services/eventService';
 import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
 import {
   clearAllQueueTokensInSession,
-  clearQueueTokenInSession,
   getQueueAdmittedUntilFromSession,
   getQueueTokenFromSession,
   setQueueAdmittedUntilInSession,
@@ -43,11 +42,19 @@ export default function EventPaymentPage() {
   const location = useLocation();
   const { token } = getAuthSession();
   const {
-    seatIds = [],
+    seatIds: seatIdsFromState = [],
     reservationId,
     queueToken: queueTokenFromState,
   } = (location.state as PaymentLocationState) || {};
   const queueToken = queueTokenFromState || getQueueTokenFromSession(parsedEventId);
+  const pendingReservation = useMemo(
+    () => (reservationId ? getPendingReservations().find(item => item.id === reservationId) ?? null : null),
+    [reservationId],
+  );
+  const seatIds = useMemo(
+    () => (Array.isArray(seatIdsFromState) && seatIdsFromState.length > 0 ? seatIdsFromState : pendingReservation?.seatIds ?? []),
+    [pendingReservation?.seatIds, seatIdsFromState],
+  );
 
   useEffect(() => {
     if (!Number.isFinite(parsedEventId) || !queueToken) {
@@ -75,12 +82,18 @@ export default function EventPaymentPage() {
       return;
     }
 
+    const id = Number(eventId);
+    if (Number.isFinite(id) && !queueToken && !bookingCompleted) {
+      setError('Phiên vào cổng đã hết hoặc bị mất. Vui lòng vào lại phòng chờ để tiếp tục thanh toán.');
+      navigate(`/user/events/${id}/waiting-room`, { replace: true });
+      return;
+    }
+
     if (!Array.isArray(seatIds) || seatIds.length === 0) {
       navigate(`/user/events/${eventId}/booking`, { replace: true });
       return;
     }
 
-    const id = Number(eventId);
     if (!Number.isFinite(id)) {
       setError('Sự kiện không hợp lệ');
       setLoading(false);
@@ -109,7 +122,7 @@ export default function EventPaymentPage() {
     };
 
     void loadData();
-  }, [eventId, navigate, seatIds, token]);
+  }, [bookingCompleted, eventId, navigate, queueToken, seatIds, token]);
 
   useEffect(() => {
     const id = Number(eventId);
@@ -127,16 +140,8 @@ export default function EventPaymentPage() {
         });
     }, HEARTBEAT_INTERVAL_MS);
 
-    const handleBeforeUnload = () => {
-      sendVirtualQueueReleaseBeacon(id, queueToken);
-      clearQueueTokenInSession(id);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [bookingCompleted, eventId, queueToken, token]);
 
@@ -168,6 +173,11 @@ export default function EventPaymentPage() {
 
     if (!paymentProof) {
       setCheckoutError('Vui lòng tải lên ảnh minh chứng thanh toán.');
+      return;
+    }
+
+    if (!queueToken) {
+      setCheckoutError('Không tìm thấy queue token hợp lệ. Vui lòng vào lại phòng chờ và thử lại.');
       return;
     }
 

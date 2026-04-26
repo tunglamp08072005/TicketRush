@@ -65,6 +65,10 @@ public class Event {
     @Column(nullable = false, length = 20)
     private EventStatus status = EventStatus.UPCOMING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private EventCategory category;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -81,6 +85,9 @@ public class Event {
         }
         if (archived == null) {
             archived = Boolean.FALSE;
+        }
+        if (category == null) {
+            category = EventCategory.KHAC;
         }
     }
 
@@ -207,6 +214,14 @@ public class Event {
 
     public void setStatus(EventStatus status) {
         this.status = status;
+    }
+
+    public EventCategory getCategory() {
+        return category == null ? EventCategory.KHAC : category;
+    }
+
+    public void setCategory(EventCategory category) {
+        this.category = category;
     }
 
     public LocalDateTime getCreatedAt() {

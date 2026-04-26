@@ -1,6 +1,7 @@
 import { getAuthSession } from '../../auth/utils/authStorage';
 
 export type AdminEventStatus = 'UPCOMING' | 'ON_SALE' | 'ENDED';
+export type AdminEventCategory = 'NHAC_SONG' | 'SAN_KHAU' | 'THE_THAO' | 'HOI_THAO' | 'TRAI_NGHIEM' | 'KHAC';
 
 export interface AdminEventZone {
   id: number;
@@ -26,6 +27,7 @@ export interface AdminEvent {
   saleEndDate: string;
   eventStartDate: string;
   seatHoldMinutes: number;
+  category: AdminEventCategory;
   status: AdminEventStatus;
   publicVisible: boolean;
   archived: boolean;
@@ -54,7 +56,7 @@ export interface CreateAdminEventPayload {
   openSaleDate: string;
   saleEndDate: string;
   eventStartDate: string;
-  seatHoldMinutes: number;
+  category: AdminEventCategory;
   status?: AdminEventStatus;
   publicVisible?: boolean;
   archived?: boolean;

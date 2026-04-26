@@ -59,7 +59,12 @@ function inferTicketTier(seatCodes: string[]): string {
   return 'General Admission';
 }
 
-function mapApprovedPaymentsToTickets(payments: PaymentOrder[], eventInfoById: Map<number, { date: string; location: string }>): TicketItem[] {
+function mapApprovedPaymentsToTickets(
+  payments: PaymentOrder[],
+  eventInfoById: Map<number, { date: string; location: string }>,
+  buyerEmail?: string,
+  buyerPhone?: string
+): TicketItem[] {
   return payments
     .filter(order => order.paymentStatus === 'APPROVED' && order.orderStatus === 'SUCCESS')
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
@@ -72,8 +77,8 @@ function mapApprovedPaymentsToTickets(payments: PaymentOrder[], eventInfoById: M
       seat: order.seatCodes.length > 0 ? `Ghế: ${order.seatCodes.join(', ')}` : 'Ghế: Đang cập nhật',
       ticketTier: inferTicketTier(order.seatCodes),
       buyerName: order.username,
-      buyerEmail: 'Theo tài khoản đăng ký',
-      buyerPhone: 'Theo hồ sơ người dùng',
+      buyerEmail,
+      buyerPhone,
       qrValue: `${order.queueId}|${order.eventId}|${order.seatCodes.join(',')}`,
       checkInInstruction: 'Vui lòng mở mã vé khi vào cổng và đến trước giờ diễn tối thiểu 30 phút.',
       terms: [
@@ -201,7 +206,7 @@ export default function UserDashboard() {
         );
 
         const eventInfoById = new Map<number, { date: string; location: string }>(eventDetailPairs);
-        setTicketsData(mapApprovedPaymentsToTickets(orders, eventInfoById));
+        setTicketsData(mapApprovedPaymentsToTickets(orders, eventInfoById, email, phoneNumber));
         setTicketsError('');
       } catch (err) {
         setTicketsData([]);
@@ -222,6 +227,13 @@ export default function UserDashboard() {
         setFullName(data.profile || '');
         setAvatarUrl(data.avatarUrl || '');
         setPhoneNumber(data.phoneNumber || '');
+        setTicketsData(prev =>
+          prev.map(ticket => ({
+            ...ticket,
+            buyerEmail: data.email || undefined,
+            buyerPhone: data.phoneNumber || undefined,
+          }))
+        );
         setError('');
       } catch (err) {
         if (err instanceof Error) {
@@ -389,7 +401,7 @@ export default function UserDashboard() {
                         type="button"
                         disabled={minutesLeft <= 0}
                         onClick={() => {
-                          navigate(`/events/${item.eventId}/booking/payment`, {
+                          navigate(`/user/events/${item.eventId}/booking/payment`, {
                             state: {
                               seatIds: item.seatIds,
                               reservationId: item.id,

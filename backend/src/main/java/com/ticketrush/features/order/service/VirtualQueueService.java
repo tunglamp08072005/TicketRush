@@ -311,6 +311,13 @@ public class VirtualQueueService {
         }
     }
 
+    public void assertAdmittedAndRefresh(Long eventId, Long userId, String queueToken) {
+        assertAdmitted(eventId, userId, queueToken);
+
+        // Extend access TTL at operation start to reduce expiry races during payment upload/confirmation.
+        heartbeat(eventId, userId, queueToken);
+    }
+
     public void releaseAdmission(Long eventId, Long userId, String queueToken) {
         if (!enabled || queueToken == null || queueToken.isBlank()) {
             return;
