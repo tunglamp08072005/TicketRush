@@ -95,6 +95,15 @@ public class RedisSeatHoldService {
         }
     }
 
+    public void markSeatAvailable(Long eventId, Long seatId) {
+        if (eventId == null || seatId == null) {
+            return;
+        }
+
+        redisTemplate.opsForSet().add(availableSetKey(eventId), String.valueOf(seatId));
+        redisTemplate.delete(lockKey(seatId));
+    }
+
     public void setQueueStatusPending(String queueId, Long userId) {
         String key = queueKey(queueId);
         redisTemplate.opsForHash().put(key, "status", "PENDING");

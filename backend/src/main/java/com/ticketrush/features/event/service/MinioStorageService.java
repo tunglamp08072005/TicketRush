@@ -12,7 +12,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +38,12 @@ public class MinioStorageService {
     @Value("${app.minio.public-base-url}")
     private String publicBaseUrl;
 
+    @Value("${app.local-upload.root:backend/storage}")
+    private String localUploadRoot;
+
+    @Value("${app.local-upload.public-base-url:http://localhost:${server.port}}")
+    private String localUploadPublicBaseUrl;
+
     private volatile boolean minioReady;
 
     public MinioStorageService(MinioClient minioClient) {
@@ -42,7 +53,9 @@ public class MinioStorageService {
     @PostConstruct
     public void ensureBucket() {
         if (!minioEnabled) {
-            throw new IllegalStateException("MinIO is required but app.minio.enabled=false");
+            minioReady = false;
+            log.info("MinIO is disabled via app.minio.enabled=false. Upload endpoints will be unavailable.");
+            return;
         }
 
         try {
@@ -103,6 +116,10 @@ public class MinioStorageService {
         String extension = resolveExtension(file.getOriginalFilename(), contentType);
         String objectName = filePrefix + "-" + Instant.now().toEpochMilli() + "-" + UUID.randomUUID() + extension;
 
+        if (!minioEnabled) {
+            return saveImageLocally(file, folder, objectName, fieldLabel);
+        }
+
         if (!minioReady) {
             throw new IllegalStateException("MinIO is not ready. Please ensure MinIO is running and accessible.");
         }
@@ -124,9 +141,38 @@ public class MinioStorageService {
         }
     }
 
+    private String saveImageLocally(MultipartFile file, String folder, String objectName, String fieldLabel) {
+        try {
+            Path rootPath = Paths.get(localUploadRoot).toAbsolutePath().normalize();
+            Path folderPath = rootPath.resolve(folder).normalize();
+            Path targetPath = folderPath.resolve(objectName).normalize();
+
+            if (!targetPath.startsWith(rootPath)) {
+                throw new IllegalStateException("Resolved local upload path is outside the storage root");
+            }
+
+            Files.createDirectories(folderPath);
+
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            return buildLocalUploadUrl(folder, objectName);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Cannot save " + fieldLabel.toLowerCase() + " to local storage", ex);
+        }
+    }
+
     private String buildPublicUrl(String objectName) {
         String base = publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
         return base + "/" + bucket + "/" + objectName;
+    }
+
+    private String buildLocalUploadUrl(String folder, String objectName) {
+        String base = localUploadPublicBaseUrl.endsWith("/")
+                ? localUploadPublicBaseUrl.substring(0, localUploadPublicBaseUrl.length() - 1)
+                : localUploadPublicBaseUrl;
+        return base + "/api/uploads/" + folder + "/" + objectName;
     }
 
     private String resolveExtension(String fileName, String contentType) {

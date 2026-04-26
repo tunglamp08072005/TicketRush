@@ -36,6 +36,7 @@ export interface AdminEvent {
 }
 
 export interface CreateAdminEventZonePayload {
+  id?: number;
   name: string;
   price: number;
   rowCount: number;

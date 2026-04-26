@@ -21,6 +21,7 @@ type SeatGroup = {
 };
 
 const DEFAULT_HOLD_RESERVATION_MINUTES = 10;
+const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
 
 function formatVnd(value: number): string {
   return `${value.toLocaleString('vi-VN')}đ`;
@@ -176,6 +177,44 @@ export default function EventSeatBookingPage() {
   const holdDurationLabel = useMemo(() => formatHoldDurationLabel(holdMinutes), [holdMinutes]);
 
   const canBookSeats = isLoggedIn && profileEligible && !profileChecking;
+
+  useEffect(() => {
+    const id = Number(eventId);
+    if (!Number.isFinite(id)) {
+      return;
+    }
+
+    const refreshSeatMap = async () => {
+      try {
+        const freshSeatMap = await getPublicSeatMap(id);
+        setSeatMap(freshSeatMap);
+        setSelectedSeatIds(prevSelectedSeatIds => {
+          const availableSeatIds = new Set(
+            freshSeatMap
+              .filter(seat => seat.status === 'AVAILABLE')
+              .map(seat => seat.id),
+          );
+          const nextSelectedSeatIds = prevSelectedSeatIds.filter(seatId => availableSeatIds.has(seatId));
+
+          if (nextSelectedSeatIds.length !== prevSelectedSeatIds.length) {
+            setSeatError('Một số ghế vừa thay đổi trạng thái. Hệ thống đã cập nhật lại sơ đồ ghế.');
+          }
+
+          return nextSelectedSeatIds;
+        });
+      } catch {
+        // Ignore transient polling errors and preserve the last successful seat map.
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void refreshSeatMap();
+    }, SEAT_MAP_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [eventId]);
 
   const handleBack = () => {
     const id = eventDetail?.id ?? Number(eventId);
@@ -379,6 +418,10 @@ export default function EventSeatBookingPage() {
 
                       <p className="seat-checkout-note">
                         Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ trong {holdDurationLabel}.
+                      </p>
+
+                      <p className="seat-checkout-note">
+                        Sơ đồ ghế đang tự làm mới mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây để cập nhật trạng thái mới nhất.
                       </p>
 
                       <div className="seat-booking-action-row">

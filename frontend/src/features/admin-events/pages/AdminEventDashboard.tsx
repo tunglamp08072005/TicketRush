@@ -4,13 +4,8 @@ import AddEventForm from '../components/admin/AddEventForm';
 import {
   deleteAdminEvent,
   fetchAdminEvents,
-  updateAdminEvent,
   type AdminEvent,
-  type CreateAdminEventPayload,
 } from '../../events/services/eventApi';
-import {
-  type PaymentOrder,
-} from '../../order-payment/services/paymentService';
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -109,7 +104,6 @@ export default function AdminEventDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
-  const [updatingVisibilityEventId, setUpdatingVisibilityEventId] = useState<number | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   const stats = useMemo(() => {
@@ -192,78 +186,6 @@ export default function AdminEventDashboard() {
       }
     } finally {
       setDeletingEventId(null);
-    }
-  };
-
-  const toUpdatePayload = (event: AdminEvent, overrides?: Partial<CreateAdminEventPayload>): CreateAdminEventPayload => {
-    // Legacy events may not have saleEndDate yet. Fallback keeps request valid.
-    const fallbackSaleEndDate = event.saleEndDate && !Number.isNaN(new Date(event.saleEndDate).getTime())
-      ? event.saleEndDate
-      : event.eventStartDate;
-
-    return {
-      name: event.name,
-      description: event.description,
-      location: event.location,
-      heroImageUrl: event.heroImageUrl,
-      thumbnailUrl: event.thumbnailUrl,
-      layoutMapUrl: event.layoutMapUrl,
-      openSaleDate: event.openSaleDate,
-      saleEndDate: fallbackSaleEndDate,
-      eventStartDate: event.eventStartDate,
-      seatHoldMinutes: event.seatHoldMinutes,
-      status: event.status,
-      publicVisible: event.publicVisible,
-      archived: event.archived,
-      zones: event.zones.map(zone => ({
-        name: zone.name,
-        price: Number(zone.price),
-        rowCount: zone.rowCount,
-        seatsPerRow: zone.seatsPerRow,
-        colorHex: zone.colorHex,
-        locationDescription: zone.locationDescription || undefined,
-      })),
-      ...overrides,
-    };
-  };
-
-  const handleSetPublic = async (event: AdminEvent) => {
-    if (event.publicVisible && !event.archived) {
-      return;
-    }
-
-    try {
-      setUpdatingVisibilityEventId(event.id);
-      await updateAdminEvent(event.id, toUpdatePayload(event, { publicVisible: true, archived: false }));
-      await loadEvents(searchKeyword, true);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message || 'Không thể chuyển sự kiện sang Public');
-      } else {
-        setError('Không thể chuyển sự kiện sang Public');
-      }
-    } finally {
-      setUpdatingVisibilityEventId(null);
-    }
-  };
-
-  const handleSetArchive = async (event: AdminEvent) => {
-    if (event.archived) {
-      return;
-    }
-
-    try {
-      setUpdatingVisibilityEventId(event.id);
-      await updateAdminEvent(event.id, toUpdatePayload(event, { archived: true, publicVisible: false }));
-      await loadEvents(searchKeyword, true);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message || 'Không thể lưu trữ sự kiện');
-      } else {
-        setError('Không thể lưu trữ sự kiện');
-      }
-    } finally {
-      setUpdatingVisibilityEventId(null);
     }
   };
 
@@ -402,8 +324,6 @@ export default function AdminEventDashboard() {
                 events.map(event => {
                   const runtimeStatus = resolveRuntimeStatus(event);
                   const progress = resolveSeatProgress(event);
-                  const isPublicActive = event.publicVisible && !event.archived;
-                  const isArchiveActive = event.archived;
 
                   return (
                     <tr key={event.id} className="border-t border-slate-200 hover:bg-slate-50">
@@ -443,34 +363,6 @@ export default function AdminEventDashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void handleSetPublic(event)}
-                            disabled={updatingVisibilityEventId === event.id || isPublicActive}
-                            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-                              isPublicActive
-                                ? 'border border-slate-300 bg-slate-100 text-slate-500'
-                                : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            } disabled:opacity-60`}
-                            title="Đưa sự kiện lên Public"
-                            aria-label="Đưa sự kiện lên Public"
-                          >
-                            Public
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleSetArchive(event)}
-                            disabled={updatingVisibilityEventId === event.id || isArchiveActive}
-                            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-                              isArchiveActive
-                                ? 'border border-slate-300 bg-slate-100 text-slate-500'
-                                : 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                            } disabled:opacity-60`}
-                            title="Lưu trữ sự kiện"
-                            aria-label="Lưu trữ sự kiện"
-                          >
-                            Archive
-                          </button>
                           <button
                             type="button"
                             onClick={() => setEditingEvent(event)}

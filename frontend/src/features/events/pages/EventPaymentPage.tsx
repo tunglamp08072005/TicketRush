@@ -19,6 +19,7 @@ const BANK_TRANSFER_INFO = {
   bankName: 'MB Bank',
   accountNumber: '0359547917',
 };
+const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
 
 export default function EventPaymentPage() {
   const navigate = useNavigate();
@@ -89,6 +90,34 @@ export default function EventPaymentPage() {
     () => selectedSeats.reduce((sum, seat) => sum + seat.price, 0),
     [selectedSeats],
   );
+
+  useEffect(() => {
+    if (bookingCompleted) {
+      return;
+    }
+
+    const id = Number(eventId);
+    if (!token || !Number.isFinite(id) || !Array.isArray(seatIds) || seatIds.length === 0) {
+      return;
+    }
+
+    const refreshSeatMap = async () => {
+      try {
+        const freshSeatMap = await getPublicSeatMap(id);
+        setSeatMap(freshSeatMap);
+      } catch {
+        // Ignore transient polling errors and keep the last successful snapshot.
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void refreshSeatMap();
+    }, SEAT_MAP_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [bookingCompleted, eventId, seatIds, token]);
 
   const handleClose = () => {
     navigate('/user', { replace: true, state: { activeMenu: 'events' } });
@@ -188,6 +217,7 @@ export default function EventPaymentPage() {
                 <div className="event-payment-summary">
                   <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Không có ghế hợp lệ'}</p>
                   <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+                  <p><strong>Cập nhật trạng thái ghế:</strong> Mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây</p>
                 </div>
 
                 <label className="event-payment-upload" htmlFor="paymentProof">
