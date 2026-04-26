@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearAuthSession, getAuthSession } from '../../auth/utils/authStorage';
 import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../services/userProfileService';
+import { heartbeatVirtualQueue } from '../../events/services/virtualQueueService';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import MyTicketsSection from '../components/dashboard/MyTicketsSection';
@@ -21,6 +22,14 @@ import {
   removePendingReservation,
   type PendingReservation,
 } from '../../order-payment/services/pendingReservationService';
+import {
+  getQueueAdmittedUntilFromSession,
+  getQueueTokenFromSession,
+  listQueueEventIdsInSession,
+  setQueueAdmittedUntilInSession,
+} from '../../events/utils/queueSessionStorage';
+
+const PROFILE_HEARTBEAT_INTERVAL_MS = 30000;
 
 const PAYMENT_STATUS_NOTICE_STORAGE_KEY = 'ticketrush.paymentNotice.dismissedOrderIds';
 
@@ -97,7 +106,12 @@ function writeDismissedRejectedOrderIds(orderIds: number[]): void {
   sessionStorage.setItem(PAYMENT_STATUS_NOTICE_STORAGE_KEY, JSON.stringify(orderIds));
 }
 
-function mapApprovedPaymentsToTickets(payments: PaymentOrder[], eventInfoById: Map<number, { date: string; location: string }>): TicketItem[] {
+function mapApprovedPaymentsToTickets(
+  payments: PaymentOrder[],
+  eventInfoById: Map<number, { date: string; location: string }>,
+  buyerEmail?: string,
+  buyerPhone?: string
+): TicketItem[] {
   return payments
     .filter(order => order.paymentStatus === 'APPROVED' && order.orderStatus === 'SUCCESS')
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
@@ -110,8 +124,8 @@ function mapApprovedPaymentsToTickets(payments: PaymentOrder[], eventInfoById: M
       seat: order.seatCodes.length > 0 ? `Ghế: ${order.seatCodes.join(', ')}` : 'Ghế: Đang cập nhật',
       ticketTier: inferTicketTier(order.seatCodes),
       buyerName: order.username,
-      buyerEmail: 'Theo tài khoản đăng ký',
-      buyerPhone: 'Theo hồ sơ người dùng',
+      buyerEmail,
+      buyerPhone,
       qrValue: `${order.queueId}|${order.eventId}|${order.seatCodes.join(',')}`,
       checkInInstruction: 'Vui lòng mở mã vé khi vào cổng và đến trước giờ diễn tối thiểu 30 phút.',
       terms: [
@@ -135,6 +149,9 @@ export default function UserDashboard() {
   const [success, setSuccess] = useState('');
   const [ticketsError, setTicketsError] = useState('');
   const [paymentsError, setPaymentsError] = useState('');
+  const [queueEventId, setQueueEventId] = useState<number | null>(null);
+  const [queueReturnPath, setQueueReturnPath] = useState('');
+  const [queueSlotSecondsLeft, setQueueSlotSecondsLeft] = useState<number | null>(null);
   const [eventsSearchKeyword, setEventsSearchKeyword] = useState('');
   const [eventsSearchSubmitToken, setEventsSearchSubmitToken] = useState(0);
   const [ticketsData, setTicketsData] = useState<TicketItem[]>([]);
@@ -150,12 +167,72 @@ export default function UserDashboard() {
   const [phoneNumber, setPhoneNumber] = useState('');
 
   useEffect(() => {
-    const nextMenu = (location.state as { activeMenu?: DashboardMenuKey } | null)?.activeMenu;
+    const state = (location.state as {
+      activeMenu?: DashboardMenuKey;
+      queueEventId?: number;
+      returnToBookingPath?: string;
+    } | null);
+
+    const nextMenu = state?.activeMenu;
     if (nextMenu) {
       setActiveMenu(nextMenu);
       window.history.replaceState({}, document.title);
     }
+
+    if (state?.queueEventId && Number.isFinite(state.queueEventId)) {
+      setQueueEventId(state.queueEventId);
+    } else {
+      const availableQueueEvents = listQueueEventIdsInSession();
+      setQueueEventId(availableQueueEvents.length > 0 ? availableQueueEvents[0] : null);
+    }
+
+    setQueueReturnPath(state?.returnToBookingPath || '');
   }, [location.state]);
+
+  useEffect(() => {
+    if (activeMenu !== 'account' || !queueEventId || !Number.isFinite(queueEventId)) {
+      setQueueSlotSecondsLeft(null);
+      return;
+    }
+
+    const queueToken = getQueueTokenFromSession(queueEventId);
+    if (!queueToken) {
+      setQueueSlotSecondsLeft(null);
+      return;
+    }
+
+    const refreshCountdown = () => {
+      const admittedUntil = getQueueAdmittedUntilFromSession(queueEventId);
+      if (!admittedUntil || admittedUntil <= Date.now()) {
+        setQueueSlotSecondsLeft(null);
+        return;
+      }
+
+      setQueueSlotSecondsLeft(Math.max(0, Math.ceil((admittedUntil - Date.now()) / 1000)));
+    };
+
+    const beat = () => {
+      void heartbeatVirtualQueue(queueEventId, queueToken)
+        .then(status => {
+          setQueueAdmittedUntilInSession(queueEventId, status.admittedUntilEpochMs ?? null);
+          refreshCountdown();
+        })
+        .catch(() => {
+          setQueueSlotSecondsLeft(null);
+        });
+    };
+
+    refreshCountdown();
+    beat();
+
+    const heartbeatTimer = window.setInterval(beat, PROFILE_HEARTBEAT_INTERVAL_MS);
+    const countdownTimer = window.setInterval(refreshCountdown, 1000);
+
+    return () => {
+      window.clearInterval(heartbeatTimer);
+      window.clearInterval(countdownTimer);
+    };
+  }, [activeMenu, queueEventId]);
 
   useEffect(() => {
     setPendingReservations(getPendingReservations());
@@ -186,7 +263,7 @@ export default function UserDashboard() {
         );
 
         const eventInfoById = new Map<number, { date: string; location: string }>(eventDetailPairs);
-        setTicketsData(mapApprovedPaymentsToTickets(orders, eventInfoById));
+        setTicketsData(mapApprovedPaymentsToTickets(orders, eventInfoById, email, phoneNumber));
         setTicketsError('');
       } catch (err) {
         setTicketsData([]);
@@ -207,6 +284,13 @@ export default function UserDashboard() {
         setFullName(data.profile || '');
         setAvatarUrl(data.avatarUrl || '');
         setPhoneNumber(data.phoneNumber || '');
+        setTicketsData(prev =>
+          prev.map(ticket => ({
+            ...ticket,
+            buyerEmail: data.email || undefined,
+            buyerPhone: data.phoneNumber || undefined,
+          }))
+        );
         setError('');
       } catch (err) {
         if (err instanceof Error) {
@@ -328,6 +412,10 @@ export default function UserDashboard() {
           avatarUrl={avatarUrl}
           selectedAvatarFileName={avatarFile?.name || ''}
           phoneNumber={phoneNumber}
+          queueSlotSecondsLeft={queueSlotSecondsLeft}
+          onReturnToBooking={queueEventId
+            ? () => navigate(queueReturnPath || `/user/events/${queueEventId}/booking`)
+            : undefined}
           onAvatarFileChange={file => {
             setAvatarFile(file);
             setSuccess('');
@@ -422,12 +510,16 @@ export default function UserDashboard() {
                         type="button"
                         disabled={minutesLeft <= 0}
                         onClick={() => {
-                          navigate(`/events/${item.eventId}/booking/payment`, {
-                            state: {
-                              seatIds: item.seatIds,
-                              reservationId: item.id,
-                            },
-                          });
+                          navigate(
+                            `/user/events/${item.eventId}/booking/payment`,
+                            {
+                              state: {
+                                seatIds: item.seatIds,
+                                reservationId: item.id,
+                                queueToken: getQueueTokenFromSession(item.eventId) || undefined,
+                              },
+                            }
+                          );
                         }}
                         className="rounded-lg bg-gradient-to-r from-red-500 to-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
                       >

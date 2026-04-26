@@ -1,5 +1,6 @@
 export type EventStatus = 'UPCOMING' | 'ON_SALE' | 'ENDED';
 export type SeatStatus = 'AVAILABLE' | 'LOCKED' | 'SOLD';
+export type EventCategory = 'NHAC_SONG' | 'SAN_KHAU' | 'THE_THAO' | 'HOI_THAO' | 'TRAI_NGHIEM' | 'KHAC';
 
 export interface EventZone {
   id: number;
@@ -23,6 +24,7 @@ export interface FeaturedEvent {
   openSaleDate: string;
   saleEndDate: string;
   status: EventStatus;
+  category?: EventCategory;
 }
 
 export interface UserEventDetail extends FeaturedEvent {

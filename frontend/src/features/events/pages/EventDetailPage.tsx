@@ -115,8 +115,8 @@ export default function EventDetailPage() {
                 <div className="event-detail-actions">
                   <Link
                     to={token
-                      ? `/user/events/${eventDetail.id}/booking`
-                      : `/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`}
+                      ? `/user/events/${eventDetail.id}/waiting-room`
+                      : `/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/waiting-room`)}`}
                     className="event-detail-primary"
                   >
                     {token ? 'Đặt ghế ngay' : 'Đăng nhập để đặt ghế'}

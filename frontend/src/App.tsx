@@ -4,6 +4,7 @@ import EventsPage from './features/events/pages/EventsPage';
 import EventDetailPage from './features/events/pages/EventDetailPage';
 import EventSeatBookingPage from './features/events/pages/EventSeatBookingPage';
 import EventPaymentPage from './features/events/pages/EventPaymentPage';
+import EventWaitingRoomPage from './features/events/pages/EventWaitingRoomPage';
 import SupportPage from './features/support/pages/SupportPage';
 import AdminPaymentsReviewPage from './features/order-payment/pages/AdminPaymentsReviewPage';
 import AuthPage from './features/auth/pages/AuthPage';
@@ -40,6 +41,8 @@ export default function App() {
         <Route path="/events/:eventId" element={<EventDetailPage />} />
         <Route path="/events/:eventId/booking" element={<EventSeatBookingPage />} />
         <Route path="/events/:eventId/booking/payment" element={<EventPaymentPage />} />
+        {/* Route mới: thanh toán với orderId cụ thể */}
+        <Route path="/user/events/:eventId/payment/:orderId" element={<ProtectedRoute requiredRole="USER"><EventPaymentPage /></ProtectedRoute>} />
         <Route path="/auth" element={<AuthPage />} />
         <Route
           path="/user"
@@ -54,6 +57,14 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="USER">
               <EventDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/events/:eventId/waiting-room"
+          element={
+            <ProtectedRoute requiredRole="USER">
+              <EventWaitingRoomPage />
             </ProtectedRoute>
           }
         />

@@ -62,6 +62,10 @@ function formatDate(value: string): string {
 }
 
 function classifyCategory(event: UserEventDetail): CategoryOption {
+  if (event.category && event.category in CATEGORY_LABELS) {
+    return event.category;
+  }
+
   const joined = `${event.name} ${event.description}`.toLowerCase();
 
   if (joined.includes('concert') || joined.includes('live') || joined.includes('show') || joined.includes('music') || joined.includes('nhac') || joined.includes('nhạc')) {

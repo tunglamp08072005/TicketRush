@@ -46,7 +46,7 @@ public class FlashSalePersistenceService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
 
-        List<Seat> seats = seatRepository.findAllByIdInForUpdate(seatIds);
+        List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, seatIds);
         validateSeatCoverage(seatIds, seats);
         LocalDateTime lockedUntil = LocalDateTime.now().plusMinutes(Math.max(1, holdMinutes));
 
@@ -82,7 +82,7 @@ public class FlashSalePersistenceService {
         User user = userRepository.findById(message.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        List<Seat> seats = seatRepository.findAllByIdInForUpdate(message.getSeatIds());
+        List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(message.getEventId(), message.getSeatIds());
         validateSeatCoverage(message.getSeatIds(), seats);
 
         BigDecimal total = BigDecimal.ZERO;
@@ -130,7 +130,7 @@ public class FlashSalePersistenceService {
 
     @Transactional
     public ReleasedSeats releaseLockedSeats(OrderRequestMessage message, String reason) {
-        List<Seat> seats = seatRepository.findAllByIdInForUpdate(message.getSeatIds());
+        List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(message.getEventId(), message.getSeatIds());
         validateSeatCoverage(message.getSeatIds(), seats);
 
         List<Long> released = new ArrayList<>();

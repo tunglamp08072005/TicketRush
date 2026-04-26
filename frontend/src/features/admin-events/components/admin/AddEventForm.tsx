@@ -5,6 +5,7 @@ import {
   uploadEventLayoutMap,
   uploadEventPoster,
   type AdminEvent,
+  type AdminEventCategory,
   type CreateAdminEventZonePayload,
 } from '../../../events/services/eventApi';
 
@@ -24,9 +25,18 @@ interface ZoneDraft {
   colorHex: string;
 }
 
-type FieldErrors = Partial<Record<'name' | 'description' | 'location' | 'openSaleDate' | 'saleEndDate' | 'eventStartDate' | 'posterFile' | 'layoutMapFile' | 'seatHoldMinutes' | 'zones', string>>;
+type FieldErrors = Partial<Record<'name' | 'description' | 'location' | 'openSaleDate' | 'saleEndDate' | 'eventStartDate' | 'posterFile' | 'layoutMapFile' | 'category' | 'zones', string>>;
 type ZoneField = 'name' | 'price' | 'rowCount' | 'seatsPerRow';
 type ZoneErrors = Record<number, Partial<Record<ZoneField, string>>>;
+
+const CATEGORY_OPTIONS: Array<{ value: AdminEventCategory; label: string }> = [
+  { value: 'NHAC_SONG', label: 'Nhạc sống' },
+  { value: 'SAN_KHAU', label: 'Sân khấu & Nghệ thuật' },
+  { value: 'THE_THAO', label: 'Thể thao' },
+  { value: 'HOI_THAO', label: 'Hội thảo & Workshop' },
+  { value: 'TRAI_NGHIEM', label: 'Tham quan & Trải nghiệm' },
+  { value: 'KHAC', label: 'Khác' },
+];
 
 const zonePalette = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6'];
 
@@ -195,7 +205,7 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
   const [openSaleDate, setOpenSaleDate] = useState(toDateTimeLocal(initialEvent?.openSaleDate));
   const [saleEndDate, setSaleEndDate] = useState(toDateTimeLocal(initialEvent?.saleEndDate));
   const [eventStartDate, setEventStartDate] = useState(toDateTimeLocal(initialEvent?.eventStartDate));
-  const [seatHoldMinutes, setSeatHoldMinutes] = useState(String(initialEvent?.seatHoldMinutes ?? 10));
+  const [category, setCategory] = useState<AdminEventCategory>(initialEvent?.category ?? 'KHAC');
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [layoutMapFile, setLayoutMapFile] = useState<File | null>(null);
   const [zones, setZones] = useState<ZoneDraft[]>(
@@ -330,21 +340,20 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
       nextFieldErrors.layoutMapFile = 'Vui lòng chọn sơ đồ tổng thể.';
     }
 
-    const normalizedSeatHoldMinutes = Number(seatHoldMinutes);
-        const openSaleTimestamp = Date.parse(openSaleDate);
-        const saleEndTimestamp = Date.parse(saleEndDate);
-        const eventStartTimestamp = Date.parse(eventStartDate);
+    const openSaleTimestamp = Date.parse(openSaleDate);
+    const saleEndTimestamp = Date.parse(saleEndDate);
+    const eventStartTimestamp = Date.parse(eventStartDate);
 
-        if (Number.isFinite(openSaleTimestamp) && Number.isFinite(saleEndTimestamp) && openSaleTimestamp > saleEndTimestamp) {
-          nextFieldErrors.saleEndDate = 'Thời gian ngừng bán phải sau thời gian mở bán.';
-        }
+    if (Number.isFinite(openSaleTimestamp) && Number.isFinite(saleEndTimestamp) && openSaleTimestamp > saleEndTimestamp) {
+      nextFieldErrors.saleEndDate = 'Thời gian ngừng bán phải sau thời gian mở bán.';
+    }
 
-        if (Number.isFinite(saleEndTimestamp) && Number.isFinite(eventStartTimestamp) && saleEndTimestamp > eventStartTimestamp) {
-          nextFieldErrors.saleEndDate = 'Thời gian ngừng bán phải trước thời gian diễn ra.';
-        }
+    if (Number.isFinite(saleEndTimestamp) && Number.isFinite(eventStartTimestamp) && saleEndTimestamp > eventStartTimestamp) {
+      nextFieldErrors.saleEndDate = 'Thời gian ngừng bán phải trước thời gian diễn ra.';
+    }
 
-    if (!Number.isInteger(normalizedSeatHoldMinutes) || normalizedSeatHoldMinutes < 1 || normalizedSeatHoldMinutes > 120) {
-      nextFieldErrors.seatHoldMinutes = 'Thời gian giữ ghế phải là số nguyên từ 1 đến 120 phút.';
+    if (!CATEGORY_OPTIONS.some(option => option.value === category)) {
+      nextFieldErrors.category = 'Vui lòng chọn thể loại sự kiện.';
     }
 
     if (zones.length === 0) {
@@ -389,7 +398,6 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
       return;
     }
 
-    const normalizedSeatHoldMinutes = Number(seatHoldMinutes);
     const normalizedZones: CreateAdminEventZonePayload[] = zones.map(zone => ({
       id: isEditMode ? zone.id : undefined,
       name: zone.name.trim(),
@@ -420,7 +428,7 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
         openSaleDate: normalizedOpenSaleDate,
         saleEndDate: normalizedSaleEndDate,
         eventStartDate: normalizedEventStartDate,
-        seatHoldMinutes: normalizedSeatHoldMinutes,
+        category,
         zones: normalizedZones,
       };
 
@@ -683,21 +691,21 @@ export default function AddEventForm({ onCancel, onCreated, initialEvent = null 
         </div>
 
         <div>
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="seatHoldMinutes">
-            Thời gian giữ ghế (phút)
+          <label className="mb-1 block text-sm text-slate-600" htmlFor="eventCategory">
+            Thể loại <span className="text-red-600">*</span>
           </label>
-          <input
-            id="seatHoldMinutes"
-            type="number"
-            min={1}
-            max={120}
-            value={seatHoldMinutes}
-            onChange={e => setSeatHoldMinutes(setSingleField('seatHoldMinutes', e.target.value))}
-            className={inputClass(Boolean(fieldErrors.seatHoldMinutes))}
+          <select
+            id="eventCategory"
+            value={category}
+            onChange={e => setCategory(setSingleField('category', e.target.value) as AdminEventCategory)}
+            className={inputClass(Boolean(fieldErrors.category))}
             disabled={submitting}
-          />
-          {fieldErrors.seatHoldMinutes && <p className="mt-1 text-xs text-red-600">{fieldErrors.seatHoldMinutes}</p>}
-          <p className="mt-1 text-xs text-slate-500">Mặc định 10 phút.</p>
+          >
+            {CATEGORY_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          {fieldErrors.category && <p className="mt-1 text-xs text-red-600">{fieldErrors.category}</p>}
         </div>
 
       </div>

@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { fetchMyPayments } from '../../order-payment/services/paymentService';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { checkoutPayment } from '../../order-payment/services/paymentService';
 import { removePendingReservation } from '../../order-payment/services/pendingReservationService';
 import { getPublicEventDetail, getPublicSeatMap, type SeatMapSeat, type UserEventDetail } from '../services/eventService';
+import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
+import {
+  clearAllQueueTokensInSession,
+  getQueueAdmittedUntilFromSession,
+  getQueueTokenFromSession,
+  setQueueAdmittedUntilInSession,
+  setQueueTokenInSession,
+} from '../utils/queueSessionStorage';
 import './EventPaymentPage.css';
 
 type PaymentLocationState = {
   seatIds?: number[];
   reservationId?: string;
+  queueToken?: string;
 };
 
 function formatVnd(value: number): string {
@@ -19,14 +29,67 @@ const BANK_TRANSFER_INFO = {
   bankName: 'MB Bank',
   accountNumber: '0359547917',
 };
+const HEARTBEAT_INTERVAL_MS = 30000;
+
+function redirectToEventListWithHardReload(): void {
+  clearAllQueueTokensInSession();
+  window.location.href = '/user';
+}
 const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
 
 export default function EventPaymentPage() {
   const navigate = useNavigate();
-  const { eventId } = useParams();
+  const { eventId, orderId } = useParams();
+  const parsedEventId = Number(eventId);
+  const parsedOrderId = orderId ? Number(orderId) : undefined;
   const location = useLocation();
   const { token } = getAuthSession();
-  const { seatIds = [], reservationId } = (location.state as PaymentLocationState) || {};
+  const {
+    seatIds: seatIdsFromState = [],
+    reservationId: reservationIdFromState,
+    queueToken: queueTokenFromState,
+  } = (location.state as PaymentLocationState) || {};
+
+  // State for fetched order (if orderId is present)
+  const [orderData, setOrderData] = useState<any>(null);
+  const [orderLoading, setOrderLoading] = useState(!!parsedOrderId);
+
+  // If orderId is present, fetch order from backend
+  useEffect(() => {
+    if (!parsedOrderId) return;
+    setOrderLoading(true);
+    fetchMyPayments()
+      .then(orders => {
+        const found = orders.find(o => o.orderId === parsedOrderId);
+        if (found) {
+          setOrderData(found);
+        }
+      })
+      .finally(() => {
+        setOrderLoading(false);
+      });
+  }, [parsedOrderId]);
+
+  // Derive seatIds, reservationId, queueToken
+  const seatIds = useMemo(() => {
+    if (orderData) {
+      // Prefer explicit seatIds stored on the order object, then fall back to state
+      return orderData.seatIds?.length ? orderData.seatIds : seatIdsFromState;
+    }
+    return seatIdsFromState;
+  }, [orderData, seatIdsFromState]);
+
+  const reservationId = orderData?.queueId || reservationIdFromState;
+  const queueToken = queueTokenFromState || getQueueTokenFromSession(parsedEventId);
+
+  useEffect(() => {
+    if (!Number.isFinite(parsedEventId) || !queueToken) {
+      return;
+    }
+
+    setQueueTokenInSession(parsedEventId, queueToken);
+    setQueueAdmittedUntilInSession(parsedEventId, getQueueAdmittedUntilFromSession(parsedEventId));
+  }, [parsedEventId, queueToken]);
 
   const [eventDetail, setEventDetail] = useState<UserEventDetail | null>(null);
   const [seatMap, setSeatMap] = useState<SeatMapSeat[]>([]);
@@ -45,12 +108,30 @@ export default function EventPaymentPage() {
       return;
     }
 
-    if (!Array.isArray(seatIds) || seatIds.length === 0) {
-      navigate(`/user/events/${eventId}/booking`, { replace: true });
+    // Wait for order data to finish loading before doing any redirect
+    if (orderLoading) {
       return;
     }
 
     const id = Number(eventId);
+
+    // When coming from dashboard (existing reservation), queueToken & seatIds
+    // are provided via location state — skip the "session expired" redirect.
+    const isResumedReservation = !!reservationIdFromState;
+
+    // Only require queueToken when NOT resuming an existing reservation
+    if (!isResumedReservation && Number.isFinite(id) && !queueToken && !bookingCompleted) {
+      setError('Phiên vào cổng đã hết hoặc bị mất. Vui lòng vào lại phòng chờ để tiếp tục thanh toán.');
+      navigate(`/user/events/${id}/waiting-room`, { replace: true });
+      return;
+    }
+
+    // Only redirect back to seat booking when NOT resuming an existing reservation
+    if (!isResumedReservation && (!Array.isArray(seatIds) || seatIds.length === 0)) {
+      navigate(`/user/events/${eventId}/booking`, { replace: true });
+      return;
+    }
+
     if (!Number.isFinite(id)) {
       setError('Sự kiện không hợp lệ');
       setLoading(false);
@@ -79,7 +160,28 @@ export default function EventPaymentPage() {
     };
 
     void loadData();
-  }, [eventId, navigate, seatIds, token]);
+  }, [bookingCompleted, eventId, navigate, orderLoading, queueToken, reservationIdFromState, seatIds, token]);
+
+  useEffect(() => {
+    const id = Number(eventId);
+    if (!Number.isFinite(id) || !queueToken || !token || bookingCompleted) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void heartbeatVirtualQueue(id, queueToken)
+        .then(status => {
+          setQueueAdmittedUntilInSession(id, status.admittedUntilEpochMs ?? null);
+        })
+        .catch(() => {
+          // Checkout flow handles expired/invalid queue token from backend responses.
+        });
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [bookingCompleted, eventId, queueToken, token]);
 
   const selectedSeats = useMemo(
     () => seatMap.filter(seat => seatIds.includes(seat.id)),
@@ -120,7 +222,12 @@ export default function EventPaymentPage() {
   }, [bookingCompleted, eventId, seatIds, token]);
 
   const handleClose = () => {
-    navigate('/user', { replace: true, state: { activeMenu: 'events' } });
+    if (Number.isFinite(parsedEventId) && queueToken) {
+      sendVirtualQueueReleaseBeacon(parsedEventId, queueToken);
+    }
+
+    clearAllQueueTokensInSession();
+    window.location.href = '/user';
   };
 
   const handleCheckout = async () => {
@@ -135,12 +242,18 @@ export default function EventPaymentPage() {
       return;
     }
 
+    if (!queueToken) {
+      setCheckoutError('Không tìm thấy queue token hợp lệ. Vui lòng vào lại phòng chờ và thử lại.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       const order = await checkoutPayment({
         eventId: id,
         seatIds,
         paymentProof,
+        queueToken,
       });
 
       setCheckoutError('');
@@ -148,6 +261,7 @@ export default function EventPaymentPage() {
       setBookedQueueId(order.queueId);
       setBookedSeatCodes(order.seatCodes);
       setPaymentProof(null);
+      clearAllQueueTokensInSession();
 
       if (reservationId) {
         removePendingReservation(reservationId);
@@ -191,7 +305,7 @@ export default function EventPaymentPage() {
                 <button
                   type="button"
                   className="event-payment-primary"
-                  onClick={() => navigate('/user', { state: { activeMenu: 'events' } })}
+                  onClick={redirectToEventListWithHardReload}
                 >
                   Về danh sách sự kiện
                 </button>

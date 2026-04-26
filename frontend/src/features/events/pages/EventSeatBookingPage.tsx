@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { createPendingReservation } from '../../order-payment/services/pendingReservationService';
 import { holdSeatsForPayment } from '../../order-payment/services/paymentService';
 import { getMyProfile } from '../../user/services/userProfileService';
+import { connectSeatRealtime, type SeatRealtimeUpdate } from '../../order-payment/realtime/realtimeSeatClient';
+import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
+import {
+  clearQueueTokenInSession,
+  getQueueTokenFromSession,
+  setQueueAdmittedUntilInSession,
+  setQueueTokenInSession,
+} from '../utils/queueSessionStorage';
 import {
   getPublicEventDetail,
   getPublicSeatMap,
@@ -21,6 +29,7 @@ type SeatGroup = {
 };
 
 const DEFAULT_HOLD_RESERVATION_MINUTES = 10;
+const HEARTBEAT_INTERVAL_MS = 30000;
 const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
 
 function formatVnd(value: number): string {
@@ -43,9 +52,26 @@ function formatHoldDurationLabel(minutes: number): string {
 
 export default function EventSeatBookingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { eventId } = useParams();
+  const parsedEventId = Number(eventId);
   const { token } = getAuthSession();
   const isLoggedIn = Boolean(token);
+  const queueTokenFromState = (location.state as { queueToken?: string; admittedUntilEpochMs?: number | null } | null)?.queueToken || '';
+  const admittedUntilFromState = (location.state as { admittedUntilEpochMs?: number | null } | null)?.admittedUntilEpochMs ?? null;
+  const queueToken = queueTokenFromState || getQueueTokenFromSession(parsedEventId);
+
+  useEffect(() => {
+    if (!Number.isFinite(parsedEventId)) {
+      return;
+    }
+
+    if (queueToken) {
+      setQueueTokenInSession(parsedEventId, queueToken);
+    }
+
+    setQueueAdmittedUntilInSession(parsedEventId, admittedUntilFromState);
+  }, [admittedUntilFromState, parsedEventId, queueToken]);
 
   const [eventDetail, setEventDetail] = useState<UserEventDetail | null>(null);
   const [seatMap, setSeatMap] = useState<SeatMapSeat[]>([]);
@@ -58,6 +84,14 @@ export default function EventSeatBookingPage() {
   const [profileEligible, setProfileEligible] = useState(false);
 
   useEffect(() => {
+    if (isLoggedIn && !queueToken) {
+      const id = Number(eventId);
+      if (Number.isFinite(id)) {
+        navigate(`/user/events/${id}/waiting-room`, { replace: true });
+      }
+      return;
+    }
+
     const id = Number(eventId);
     if (!Number.isFinite(id)) {
       setError('Sự kiện không hợp lệ');
@@ -102,7 +136,7 @@ export default function EventSeatBookingPage() {
 
     void loadDetail();
     void loadSeatMap();
-  }, [eventId]);
+  }, [eventId, isLoggedIn, navigate, queueToken]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -126,6 +160,99 @@ export default function EventSeatBookingPage() {
 
     void loadProfileEligibility();
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !Number.isFinite(parsedEventId)) {
+      return;
+    }
+
+    const disconnect = connectSeatRealtime({
+      eventId: parsedEventId,
+      onSeatStatusChanged: (payload: SeatRealtimeUpdate) => {
+        if (payload.eventId !== parsedEventId) {
+          return;
+        }
+
+        setSeatMap(prev => prev.map(seat => {
+          if (seat.id !== payload.seatId) {
+            return seat;
+          }
+
+          if (seat.status === payload.status) {
+            return seat;
+          }
+
+          return {
+            ...seat,
+            status: payload.status,
+          };
+        }));
+
+        if (payload.status !== 'AVAILABLE') {
+          setSelectedSeatIds(prev => prev.filter(id => id !== payload.seatId));
+        }
+      },
+    });
+
+    return () => {
+      disconnect();
+    };
+  }, [isLoggedIn, parsedEventId]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !Number.isFinite(parsedEventId) || !queueToken) {
+      return;
+    }
+
+    let active = true;
+    void heartbeatVirtualQueue(parsedEventId, queueToken)
+      .then(status => {
+        if (!active) {
+          return;
+        }
+
+        if (status.status === 'ADMITTED' || status.status === 'DISABLED') {
+          setQueueAdmittedUntilInSession(parsedEventId, status.admittedUntilEpochMs ?? null);
+          return;
+        }
+
+        clearQueueTokenInSession(parsedEventId);
+        navigate(`/user/events/${parsedEventId}/waiting-room`, { replace: true });
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        clearQueueTokenInSession(parsedEventId);
+        navigate(`/user/events/${parsedEventId}/waiting-room`, { replace: true });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isLoggedIn, navigate, parsedEventId, queueToken]);
+
+  useEffect(() => {
+    const id = Number(eventId);
+    if (!Number.isFinite(id) || !queueToken || !isLoggedIn) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void heartbeatVirtualQueue(id, queueToken)
+        .then(status => {
+          setQueueAdmittedUntilInSession(id, status.admittedUntilEpochMs ?? null);
+        })
+        .catch(() => {
+          // Status flow and API errors are handled by existing booking/payment calls.
+        });
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [eventId, isLoggedIn, queueToken]);
 
   const seatGroups = useMemo<SeatGroup[]>(() => {
     const map = new Map<number, SeatGroup>();
@@ -178,6 +305,14 @@ export default function EventSeatBookingPage() {
 
   const canBookSeats = isLoggedIn && profileEligible && !profileChecking;
 
+  const releaseQueueSlotIfNeeded = (id: number) => {
+    if (!Number.isFinite(id) || !queueToken) {
+      return;
+    }
+
+    sendVirtualQueueReleaseBeacon(id, queueToken);
+    clearQueueTokenInSession(id);
+  };
   useEffect(() => {
     const id = Number(eventId);
     if (!Number.isFinite(id)) {
@@ -219,6 +354,10 @@ export default function EventSeatBookingPage() {
   const handleBack = () => {
     const id = eventDetail?.id ?? Number(eventId);
     if (Number.isFinite(id)) {
+      releaseQueueSlotIfNeeded(id);
+    }
+
+    if (Number.isFinite(id)) {
       navigate(isLoggedIn ? `/user/events/${id}` : `/events/${id}`);
       return;
     }
@@ -232,6 +371,11 @@ export default function EventSeatBookingPage() {
   };
 
   const handleCancel = () => {
+    const id = eventDetail?.id ?? Number(eventId);
+    if (Number.isFinite(id)) {
+      releaseQueueSlotIfNeeded(id);
+    }
+
     if (isLoggedIn) {
       navigate('/user', { state: { activeMenu: 'events' } });
       return;
@@ -262,6 +406,7 @@ export default function EventSeatBookingPage() {
     navigate(`/user/events/${id}/booking/payment`, {
       state: {
         seatIds: selectedSeatIds,
+        queueToken,
       },
     });
   };
@@ -273,7 +418,7 @@ export default function EventSeatBookingPage() {
     }
 
     try {
-      const holdResult = await holdSeatsForPayment(id, selectedSeatIds);
+      const holdResult = await holdSeatsForPayment(id, selectedSeatIds, queueToken);
       const selectedSeatCodes = selectedSeats.map(seat => seat.seatCode);
       const holdMinutes = Number.isFinite(holdResult.holdMinutes) && holdResult.holdMinutes > 0
         ? holdResult.holdMinutes
@@ -342,111 +487,117 @@ export default function EventSeatBookingPage() {
             ) : null}
 
             <section className="seat-booking-panel">
-              <h2>Chọn ghế</h2>
-              {seatLoading && <p className="seat-booking-feedback">Đang tải sơ đồ ghế...</p>}
-              {seatError && !seatLoading && <p className="seat-booking-feedback seat-booking-error">{seatError}</p>}
+                <h2>Chọn ghế</h2>
+                {seatLoading && <p className="seat-booking-feedback">Đang tải sơ đồ ghế...</p>}
+                {seatError && !seatLoading && <p className="seat-booking-feedback seat-booking-error">{seatError}</p>}
 
-              {!seatLoading && !seatError ? (
-                <>
-                  <div className="seat-legend">
-                    <span><i className="seat-dot available" /> Còn trống</span>
-                    <span><i className="seat-dot selected" /> Đang chọn</span>
-                    <span><i className="seat-dot locked" /> Đang giữ</span>
-                    <span><i className="seat-dot sold" /> Đã bán</span>
-                  </div>
-
-                  <div className="seat-zone-list">
-                    {seatGroups.map(group => (
-                      <section key={group.zoneId} className="seat-zone-card">
-                        <header>
-                          <h3>
-                            {group.zoneName}
-                            <span>{group.zoneCode}</span>
-                          </h3>
-                          <b style={{ color: group.zoneColorHex }}>{group.zoneColorHex}</b>
-                        </header>
-
-                        <div className="seat-grid">
-                          {group.seats.map(seat => {
-                            const isSelected = selectedSeatIds.includes(seat.id);
-                            const baseClass = seat.status.toLowerCase();
-
-                            return (
-                              <button
-                                key={seat.id}
-                                type="button"
-                                className={`seat-item ${baseClass} ${isSelected ? 'selected' : ''}`.trim()}
-                                disabled={seat.status !== 'AVAILABLE' || !canBookSeats}
-                                onClick={() => toggleSeat(seat)}
-                                title={`${seat.seatCode} - ${formatVnd(seat.price)}`}
-                              >
-                                {seat.seatCode}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-
-                  {!isLoggedIn ? (
-                    <div className="seat-auth-note">
-                      <p>Bạn cần đăng nhập để chọn ghế và thanh toán.</p>
-                      <Link to={`/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`} className="seat-booking-primary">Đăng nhập</Link>
+                {!seatLoading && !seatError ? (
+                  <>
+                    <div className="seat-legend">
+                      <span><i className="seat-dot available" /> Còn trống</span>
+                      <span><i className="seat-dot selected" /> Đang chọn</span>
+                      <span><i className="seat-dot locked" /> Đang giữ</span>
+                      <span><i className="seat-dot sold" /> Đã bán</span>
                     </div>
-                  ) : profileChecking ? (
-                    <div className="seat-auth-note">
-                      <p>Đang kiểm tra hồ sơ người dùng...</p>
+
+                    <div className="seat-zone-list">
+                      {seatGroups.map(group => (
+                        <section key={group.zoneId} className="seat-zone-card">
+                          <header>
+                            <h3>
+                              {group.zoneName}
+                              <span>{group.zoneCode}</span>
+                            </h3>
+                            <b style={{ color: group.zoneColorHex }}>{group.zoneColorHex}</b>
+                          </header>
+
+                          <div className="seat-grid">
+                            {group.seats.map(seat => {
+                              const isSelected = selectedSeatIds.includes(seat.id);
+                              const baseClass = seat.status.toLowerCase();
+
+                              return (
+                                <button
+                                  key={seat.id}
+                                  type="button"
+                                  className={`seat-item ${baseClass} ${isSelected ? 'selected' : ''}`.trim()}
+                                  disabled={seat.status !== 'AVAILABLE' || !canBookSeats}
+                                  onClick={() => toggleSeat(seat)}
+                                  title={`${seat.seatCode} - ${formatVnd(seat.price)}`}
+                                >
+                                  {seat.seatCode}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
                     </div>
-                  ) : !profileEligible ? (
-                    <div className="seat-auth-note">
-                      <p>Bạn cần cập nhật Họ và tên + Số điện thoại trong hồ sơ trước khi đặt vé.</p>
-                      <button
-                        type="button"
-                        className="seat-booking-primary"
-                        onClick={() => navigate('/user', { state: { activeMenu: 'account' } })}
-                      >
-                        Cập nhật hồ sơ
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="seat-checkout-box">
-                      <div className="seat-checkout-summary">
-                        <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Chưa chọn ghế'}</p>
-                        <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+
+                    {!isLoggedIn ? (
+                      <div className="seat-auth-note">
+                        <p>Bạn cần đăng nhập để chọn ghế và thanh toán.</p>
+                        <Link to={`/auth?redirect=${encodeURIComponent(`/user/events/${eventDetail.id}/booking`)}`} className="seat-booking-primary">Đăng nhập</Link>
                       </div>
-
-                      <p className="seat-checkout-note">
-                        Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ trong {holdDurationLabel}.
-                      </p>
-
-                      <p className="seat-checkout-note">
-                        Sơ đồ ghế đang tự làm mới mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây để cập nhật trạng thái mới nhất.
-                      </p>
-
-                      <div className="seat-booking-action-row">
+                    ) : profileChecking ? (
+                      <div className="seat-auth-note">
+                        <p>Đang kiểm tra hồ sơ người dùng...</p>
+                      </div>
+                    ) : !profileEligible ? (
+                      <div className="seat-auth-note">
+                        <p>Bạn cần cập nhật Họ và tên + Số điện thoại trong hồ sơ trước khi đặt vé.</p>
                         <button
                           type="button"
                           className="seat-booking-primary"
-                          disabled={selectedSeatIds.length === 0}
-                          onClick={handleBookAndPayNow}
+                          onClick={() => navigate('/user', {
+                            state: {
+                              activeMenu: 'account',
+                              queueEventId: eventDetail.id,
+                              returnToBookingPath: `/user/events/${eventDetail.id}/booking`,
+                            },
+                          })}
                         >
-                          Đặt chỗ và thanh toán ngay
-                        </button>
-
-                        <button
-                          type="button"
-                          className="seat-booking-secondary"
-                          disabled={selectedSeatIds.length === 0}
-                          onClick={() => void handleHoldSeat()}
-                        >
-                          Giữ chỗ {holdDurationLabel}
+                          Cập nhật hồ sơ
                         </button>
                       </div>
-                    </div>
-                  )}
-                </>
-              ) : null}
+                    ) : (
+                      <div className="seat-checkout-box">
+                        <div className="seat-checkout-summary">
+                          <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Chưa chọn ghế'}</p>
+                          <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+                        </div>
+
+                        <p className="seat-checkout-note">
+                          Đặt chỗ sẽ thanh toán ngay. Giữ chỗ sẽ đưa vào mục Thanh toán và giữ trong {holdDurationLabel}.
+                        </p>
+
+                        <p className="seat-checkout-note">
+                          Sơ đồ ghế đang tự làm mới mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây để cập nhật trạng thái mới nhất.
+                        </p>
+
+                        <div className="seat-booking-action-row">
+                          <button
+                            type="button"
+                            className="seat-booking-primary"
+                            disabled={selectedSeatIds.length === 0}
+                            onClick={handleBookAndPayNow}
+                          >
+                            Đặt chỗ và thanh toán ngay
+                          </button>
+
+                          <button
+                            type="button"
+                            className="seat-booking-secondary"
+                            disabled={selectedSeatIds.length === 0}
+                            onClick={() => void handleHoldSeat()}
+                          >
+                            Giữ chỗ {holdDurationLabel}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
             </section>
           </article>
         ) : null}

@@ -65,6 +65,7 @@ public class SecurityConfig {
                     "/api/events/featured",
                     "/api/events",
                     "/api/events/**",
+                    "/api/virtual-queue/events/**",
                     "/api/flash-sale/orders",
                     "/api/flash-sale/orders/**",
                     "/api/admin/events",
@@ -76,7 +77,9 @@ public class SecurityConfig {
                     "/api/admin/users",
                     "/api/admin/users/**",
                     "/ws-ticket",
-                    "/ws-ticket/**"
+                    "/ws-ticket/**",
+                    "/ws-ticket-sockjs",
+                    "/ws-ticket-sockjs/**"
                 ).permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/error").permitAll()

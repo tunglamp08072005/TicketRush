@@ -1,6 +1,7 @@
 package com.ticketrush.features.event.dto;
 
 import com.ticketrush.features.event.entity.EventStatus;
+import com.ticketrush.features.event.entity.EventCategory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ public class EventDto {
     private LocalDateTime saleEndDate;
     private LocalDateTime eventStartDate;
     private int seatHoldMinutes;
+    private EventCategory category;
     private EventStatus status;
     private boolean publicVisible;
     private boolean archived;
@@ -29,7 +31,7 @@ public class EventDto {
     public EventDto() {
     }
 
-    public EventDto(Long id, String name, String description, String location, String heroImageUrl, String thumbnailUrl, String layoutMapUrl, LocalDateTime openSaleDate, LocalDateTime saleEndDate, LocalDateTime eventStartDate, int seatHoldMinutes, EventStatus status, boolean publicVisible, boolean archived, int totalSeatCount, int soldSeatCount, BigDecimal soldRevenue, List<EventZoneDto> zones) {
+    public EventDto(Long id, String name, String description, String location, String heroImageUrl, String thumbnailUrl, String layoutMapUrl, LocalDateTime openSaleDate, LocalDateTime saleEndDate, LocalDateTime eventStartDate, int seatHoldMinutes, EventCategory category, EventStatus status, boolean publicVisible, boolean archived, int totalSeatCount, int soldSeatCount, BigDecimal soldRevenue, List<EventZoneDto> zones) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -41,6 +43,7 @@ public class EventDto {
         this.saleEndDate = saleEndDate;
         this.eventStartDate = eventStartDate;
         this.seatHoldMinutes = seatHoldMinutes;
+        this.category = category;
         this.status = status;
         this.publicVisible = publicVisible;
         this.archived = archived;
@@ -136,6 +139,14 @@ public class EventDto {
 
     public void setSeatHoldMinutes(int seatHoldMinutes) {
         this.seatHoldMinutes = seatHoldMinutes;
+    }
+
+    public EventCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(EventCategory category) {
+        this.category = category;
     }
 
     public EventStatus getStatus() {

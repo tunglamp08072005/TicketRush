@@ -4,6 +4,7 @@ import com.ticketrush.features.payment.dto.AdminPaymentReviewRequest;
 import com.ticketrush.features.payment.dto.PaymentOrderDto;
 import com.ticketrush.features.payment.dto.SeatHoldResponseDto;
 import com.ticketrush.features.payment.dto.SeatReleaseResponseDto;
+import com.ticketrush.features.order.service.VirtualQueueService;
 import com.ticketrush.features.user.entity.User;
 import com.ticketrush.features.payment.service.PaymentService;
 import com.ticketrush.features.user.service.UserService;
@@ -28,11 +29,16 @@ import java.util.Arrays;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final VirtualQueueService virtualQueueService;
     private final JwtUtil jwtUtil;
     private final UserService userService;
 
-    public PaymentController(PaymentService paymentService, JwtUtil jwtUtil, UserService userService) {
+    public PaymentController(PaymentService paymentService,
+                             VirtualQueueService virtualQueueService,
+                             JwtUtil jwtUtil,
+                             UserService userService) {
         this.paymentService = paymentService;
+        this.virtualQueueService = virtualQueueService;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
     }
@@ -40,12 +46,14 @@ public class PaymentController {
     @PostMapping("/api/user/payments/checkout")
     public ResponseEntity<?> checkoutPayment(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestHeader(value = "X-Queue-Token", required = false) String queueToken,
             @RequestParam("eventId") Long eventId,
             @RequestParam("seatIds") String seatIdsRaw,
             @RequestParam("paymentProof") MultipartFile paymentProof
     ) {
         try {
             User user = resolveUser(authorizationHeader);
+            virtualQueueService.assertAdmittedAndRefresh(eventId, user.getId(), queueToken);
             List<Long> seatIds = Arrays.stream(seatIdsRaw.split(","))
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
@@ -53,6 +61,7 @@ public class PaymentController {
                 .toList();
 
             PaymentOrderDto response = paymentService.createCheckoutOrder(user, eventId, seatIds, paymentProof);
+            virtualQueueService.releaseAdmission(eventId, user.getId(), queueToken);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
@@ -65,11 +74,13 @@ public class PaymentController {
     @PostMapping("/api/user/payments/hold")
     public ResponseEntity<?> holdSeats(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestHeader(value = "X-Queue-Token", required = false) String queueToken,
             @RequestParam("eventId") Long eventId,
             @RequestParam("seatIds") String seatIdsRaw
     ) {
         try {
             User user = resolveUser(authorizationHeader);
+            virtualQueueService.assertAdmittedAndRefresh(eventId, user.getId(), queueToken);
             List<Long> seatIds = Arrays.stream(seatIdsRaw.split(","))
                     .map(String::trim)
                     .filter(value -> !value.isBlank())

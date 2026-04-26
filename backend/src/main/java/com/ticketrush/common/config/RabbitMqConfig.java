@@ -33,6 +33,23 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public Queue authEmailQueue(@Value("${app.auth.email.queue-name}") String queueName) {
+        return new Queue(queueName, true);
+    }
+
+    @Bean
+    public DirectExchange authEmailExchange(@Value("${app.auth.email.exchange-name}") String exchangeName) {
+        return new DirectExchange(exchangeName, true, false);
+    }
+
+    @Bean
+    public Binding authEmailBinding(Queue authEmailQueue,
+                                    DirectExchange authEmailExchange,
+                                    @Value("${app.auth.email.routing-key}") String routingKey) {
+        return BindingBuilder.bind(authEmailQueue).to(authEmailExchange).with(routingKey);
+    }
+
+    @Bean
     public Jackson2JsonMessageConverter jackson2JsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }
