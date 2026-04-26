@@ -37,7 +37,7 @@ public class Event {
     @Column
     private LocalDateTime saleEndDate;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime eventStartDate;
 
     @Column(nullable = false, length = 1000)
@@ -46,11 +46,11 @@ public class Event {
     @Column(nullable = false, length = 1000)
     private String thumbnailUrl;
 
-    @Column(nullable = false, length = 1000)
+    @Column(length = 1000)
     private String layoutMapUrl;
 
-    @Column(nullable = false)
-    private int seatHoldMinutes = 10;
+    @Column
+    private Integer seatHoldMinutes = 10;
 
     @Column(nullable = false)
     private boolean featured = true;
@@ -73,6 +73,7 @@ public class Event {
 
     @PrePersist
     public void prePersist() {
+        applyDefaults();
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
@@ -81,6 +82,23 @@ public class Event {
         }
         if (archived == null) {
             archived = Boolean.FALSE;
+        }
+    }
+
+    @jakarta.persistence.PreUpdate
+    public void preUpdate() {
+        applyDefaults();
+    }
+
+    private void applyDefaults() {
+        if (eventStartDate == null) {
+            eventStartDate = openSaleDate;
+        }
+        if (layoutMapUrl == null || layoutMapUrl.isBlank()) {
+            layoutMapUrl = thumbnailUrl;
+        }
+        if (seatHoldMinutes == null || seatHoldMinutes < 1) {
+            seatHoldMinutes = 10;
         }
     }
 
@@ -138,7 +156,7 @@ public class Event {
     }
 
     public LocalDateTime getEventStartDate() {
-        return eventStartDate;
+        return eventStartDate != null ? eventStartDate : openSaleDate;
     }
 
     public void setEventStartDate(LocalDateTime eventStartDate) {
@@ -162,7 +180,7 @@ public class Event {
     }
 
     public String getLayoutMapUrl() {
-        return layoutMapUrl;
+        return (layoutMapUrl == null || layoutMapUrl.isBlank()) ? thumbnailUrl : layoutMapUrl;
     }
 
     public void setLayoutMapUrl(String layoutMapUrl) {
@@ -170,10 +188,10 @@ public class Event {
     }
 
     public int getSeatHoldMinutes() {
-        return seatHoldMinutes;
+        return seatHoldMinutes == null || seatHoldMinutes < 1 ? 10 : seatHoldMinutes;
     }
 
-    public void setSeatHoldMinutes(int seatHoldMinutes) {
+    public void setSeatHoldMinutes(Integer seatHoldMinutes) {
         this.seatHoldMinutes = seatHoldMinutes;
     }
 

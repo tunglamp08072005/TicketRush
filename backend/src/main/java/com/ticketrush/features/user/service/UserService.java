@@ -90,10 +90,11 @@ public class UserService {
             .map(user -> {
                 boolean hasProfile = hasText(user.getProfileText());
                 boolean hasPhoneNumber = hasText(user.getPhoneNumber());
+                String adminDisplayName = hasProfile ? user.getProfileText().trim() : user.getUsername();
 
                 return new AdminUserItemDto(
                     user.getId(),
-                    user.getUsername(),
+                    adminDisplayName,
                     user.getEmail(),
                     normalizeRole(user.getRole()),
                     hasProfile && hasPhoneNumber,
