@@ -1,6 +1,7 @@
 package com.ticketrush.features.payment.service;
 
 import com.ticketrush.features.payment.dto.PaymentOrderDto;
+import com.ticketrush.features.payment.dto.SeatRealtimeUpdateDto;
 import com.ticketrush.features.event.entity.Event;
 import com.ticketrush.features.event.service.MinioStorageService;
 import com.ticketrush.features.order.entity.OrderStatus;
@@ -13,8 +14,11 @@ import com.ticketrush.features.user.entity.User;
 import com.ticketrush.features.event.repository.EventRepository;
 import com.ticketrush.features.event.repository.SeatRepository;
 import com.ticketrush.features.order.repository.TicketOrderRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -33,15 +37,18 @@ public class PaymentService {
     private final SeatRepository seatRepository;
     private final TicketOrderRepository ticketOrderRepository;
     private final MinioStorageService minioStorageService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public PaymentService(EventRepository eventRepository,
                           SeatRepository seatRepository,
                           TicketOrderRepository ticketOrderRepository,
-                          MinioStorageService minioStorageService) {
+                          MinioStorageService minioStorageService,
+                          SimpMessagingTemplate messagingTemplate) {
         this.eventRepository = eventRepository;
         this.seatRepository = seatRepository;
         this.ticketOrderRepository = ticketOrderRepository;
         this.minioStorageService = minioStorageService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -107,6 +114,7 @@ public class PaymentService {
 
         order.setTotalAmount(total);
         seatRepository.saveAll(seats);
+        publishSeatStatusAfterCommit(event.getId(), seats);
 
         TicketOrder saved = ticketOrderRepository.save(order);
         return toDto(saved);
@@ -158,6 +166,7 @@ public class PaymentService {
         }
 
         seatRepository.saveAll(seats);
+        publishSeatStatusAfterCommit(event.getId(), seats);
 
         List<String> seatCodes = seats.stream().map(Seat::getSeatCode).toList();
         return new com.ticketrush.features.payment.dto.SeatHoldResponseDto(
@@ -200,6 +209,7 @@ public class PaymentService {
         }
 
         seatRepository.saveAll(seats);
+        publishSeatStatusAfterCommit(event.getId(), seats);
 
         return new com.ticketrush.features.payment.dto.SeatReleaseResponseDto(
                 event.getId(),
@@ -254,6 +264,9 @@ public class PaymentService {
             seat.setLockedByUserId(null);
             seat.setLockedUntil(null);
         }
+
+        List<Seat> updatedSeats = order.getItems().stream().map(TicketOrderItem::getSeat).toList();
+        publishSeatStatusAfterCommit(order.getEvent().getId(), updatedSeats);
 
         order.setPaymentStatus(PaymentStatus.REJECTED);
         order.setPaymentReviewedAt(LocalDateTime.now());
@@ -311,5 +324,39 @@ public class PaymentService {
                 order.getPaymentReviewedAt(),
                 order.getCreatedAt()
         );
+    }
+
+    private void publishSeatStatusAfterCommit(Long eventId, List<Seat> seats) {
+        if (eventId == null || seats == null || seats.isEmpty()) {
+            return;
+        }
+
+        List<SeatRealtimeUpdateDto> updates = seats.stream()
+                .map(seat -> new SeatRealtimeUpdateDto(
+                        eventId,
+                        seat.getId(),
+                        seat.getSeatCode(),
+                        seat.getStatus().name()
+                ))
+                .toList();
+
+        Runnable sender = () -> {
+            String topic = "/topic/event/" + eventId;
+            for (SeatRealtimeUpdateDto update : updates) {
+                messagingTemplate.convertAndSend(topic, update);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sender.run();
+                }
+            });
+            return;
+        }
+
+        sender.run();
     }
 }

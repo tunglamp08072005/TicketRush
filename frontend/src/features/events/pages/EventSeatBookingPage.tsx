@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { createPendingReservation } from '../../order-payment/services/pendingReservationService';
 import { holdSeatsForPayment } from '../../order-payment/services/paymentService';
 import { getMyProfile } from '../../user/services/userProfileService';
+import { connectSeatRealtime, type SeatRealtimeUpdate } from '../../order-payment/realtime/realtimeSeatClient';
+import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
+import {
+  clearAllQueueTokensInSession,
+  clearQueueTokenInSession,
+  getQueueTokenFromSession,
+  setQueueAdmittedUntilInSession,
+  setQueueTokenInSession,
+} from '../utils/queueSessionStorage';
 import {
   getPublicEventDetail,
   getPublicSeatMap,
@@ -21,6 +30,7 @@ type SeatGroup = {
 };
 
 const DEFAULT_HOLD_RESERVATION_MINUTES = 10;
+const HEARTBEAT_INTERVAL_MS = 30000;
 
 function formatVnd(value: number): string {
   return `${value.toLocaleString('vi-VN')}đ`;
@@ -42,9 +52,26 @@ function formatHoldDurationLabel(minutes: number): string {
 
 export default function EventSeatBookingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { eventId } = useParams();
+  const parsedEventId = Number(eventId);
   const { token } = getAuthSession();
   const isLoggedIn = Boolean(token);
+  const queueTokenFromState = (location.state as { queueToken?: string; admittedUntilEpochMs?: number | null } | null)?.queueToken || '';
+  const admittedUntilFromState = (location.state as { admittedUntilEpochMs?: number | null } | null)?.admittedUntilEpochMs ?? null;
+  const queueToken = queueTokenFromState || getQueueTokenFromSession(parsedEventId);
+
+  useEffect(() => {
+    if (!Number.isFinite(parsedEventId)) {
+      return;
+    }
+
+    if (queueToken) {
+      setQueueTokenInSession(parsedEventId, queueToken);
+    }
+
+    setQueueAdmittedUntilInSession(parsedEventId, admittedUntilFromState);
+  }, [admittedUntilFromState, parsedEventId, queueToken]);
 
   const [eventDetail, setEventDetail] = useState<UserEventDetail | null>(null);
   const [seatMap, setSeatMap] = useState<SeatMapSeat[]>([]);
@@ -57,6 +84,14 @@ export default function EventSeatBookingPage() {
   const [profileEligible, setProfileEligible] = useState(false);
 
   useEffect(() => {
+    if (isLoggedIn && !queueToken) {
+      const id = Number(eventId);
+      if (Number.isFinite(id)) {
+        navigate(`/user/events/${id}/waiting-room`, { replace: true });
+      }
+      return;
+    }
+
     const id = Number(eventId);
     if (!Number.isFinite(id)) {
       setError('Sự kiện không hợp lệ');
@@ -101,7 +136,7 @@ export default function EventSeatBookingPage() {
 
     void loadDetail();
     void loadSeatMap();
-  }, [eventId]);
+  }, [eventId, isLoggedIn, navigate, queueToken]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -125,6 +160,107 @@ export default function EventSeatBookingPage() {
 
     void loadProfileEligibility();
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !Number.isFinite(parsedEventId)) {
+      return;
+    }
+
+    const disconnect = connectSeatRealtime({
+      eventId: parsedEventId,
+      onSeatStatusChanged: (payload: SeatRealtimeUpdate) => {
+        if (payload.eventId !== parsedEventId) {
+          return;
+        }
+
+        setSeatMap(prev => prev.map(seat => {
+          if (seat.id !== payload.seatId) {
+            return seat;
+          }
+
+          if (seat.status === payload.status) {
+            return seat;
+          }
+
+          return {
+            ...seat,
+            status: payload.status,
+          };
+        }));
+
+        if (payload.status !== 'AVAILABLE') {
+          setSelectedSeatIds(prev => prev.filter(id => id !== payload.seatId));
+        }
+      },
+    });
+
+    return () => {
+      disconnect();
+    };
+  }, [isLoggedIn, parsedEventId]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !Number.isFinite(parsedEventId) || !queueToken) {
+      return;
+    }
+
+    let active = true;
+    void heartbeatVirtualQueue(parsedEventId, queueToken)
+      .then(status => {
+        if (!active) {
+          return;
+        }
+
+        if (status.status === 'ADMITTED' || status.status === 'DISABLED') {
+          setQueueAdmittedUntilInSession(parsedEventId, status.admittedUntilEpochMs ?? null);
+          return;
+        }
+
+        clearQueueTokenInSession(parsedEventId);
+        navigate(`/user/events/${parsedEventId}/waiting-room`, { replace: true });
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        clearQueueTokenInSession(parsedEventId);
+        navigate(`/user/events/${parsedEventId}/waiting-room`, { replace: true });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isLoggedIn, navigate, parsedEventId, queueToken]);
+
+  useEffect(() => {
+    const id = Number(eventId);
+    if (!Number.isFinite(id) || !queueToken || !isLoggedIn) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void heartbeatVirtualQueue(id, queueToken)
+        .then(status => {
+          setQueueAdmittedUntilInSession(id, status.admittedUntilEpochMs ?? null);
+        })
+        .catch(() => {
+          // Status flow and API errors are handled by existing booking/payment calls.
+        });
+    }, HEARTBEAT_INTERVAL_MS);
+
+    const handleBeforeUnload = () => {
+      sendVirtualQueueReleaseBeacon(id, queueToken);
+      clearQueueTokenInSession(id);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [eventId, isLoggedIn, queueToken]);
 
   const seatGroups = useMemo<SeatGroup[]>(() => {
     const map = new Map<number, SeatGroup>();
@@ -177,8 +313,21 @@ export default function EventSeatBookingPage() {
 
   const canBookSeats = isLoggedIn && profileEligible && !profileChecking;
 
+  const releaseQueueSlotIfNeeded = (id: number) => {
+    if (!Number.isFinite(id) || !queueToken) {
+      return;
+    }
+
+    sendVirtualQueueReleaseBeacon(id, queueToken);
+    clearQueueTokenInSession(id);
+  };
+
   const handleBack = () => {
     const id = eventDetail?.id ?? Number(eventId);
+    if (Number.isFinite(id)) {
+      releaseQueueSlotIfNeeded(id);
+    }
+
     if (Number.isFinite(id)) {
       navigate(isLoggedIn ? `/user/events/${id}` : `/events/${id}`);
       return;
@@ -193,6 +342,11 @@ export default function EventSeatBookingPage() {
   };
 
   const handleCancel = () => {
+    const id = eventDetail?.id ?? Number(eventId);
+    if (Number.isFinite(id)) {
+      releaseQueueSlotIfNeeded(id);
+    }
+
     if (isLoggedIn) {
       navigate('/user', { state: { activeMenu: 'events' } });
       return;
@@ -223,6 +377,7 @@ export default function EventSeatBookingPage() {
     navigate(`/user/events/${id}/booking/payment`, {
       state: {
         seatIds: selectedSeatIds,
+        queueToken,
       },
     });
   };
@@ -234,7 +389,7 @@ export default function EventSeatBookingPage() {
     }
 
     try {
-      const holdResult = await holdSeatsForPayment(id, selectedSeatIds);
+      const holdResult = await holdSeatsForPayment(id, selectedSeatIds, queueToken);
       const selectedSeatCodes = selectedSeats.map(seat => seat.seatCode);
       const holdMinutes = Number.isFinite(holdResult.holdMinutes) && holdResult.holdMinutes > 0
         ? holdResult.holdMinutes
@@ -252,6 +407,7 @@ export default function EventSeatBookingPage() {
 
       setSeatError('');
       setSelectedSeatIds([]);
+      clearAllQueueTokensInSession();
 
       navigate('/user', {
         state: {
@@ -365,7 +521,13 @@ export default function EventSeatBookingPage() {
                       <button
                         type="button"
                         className="seat-booking-primary"
-                        onClick={() => navigate('/user', { state: { activeMenu: 'account' } })}
+                        onClick={() => navigate('/user', {
+                          state: {
+                            activeMenu: 'account',
+                            queueEventId: eventDetail.id,
+                            returnToBookingPath: `/user/events/${eventDetail.id}/booking`,
+                          },
+                        })}
                       >
                         Cập nhật hồ sơ
                       </button>

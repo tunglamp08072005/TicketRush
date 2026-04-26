@@ -8,9 +8,6 @@ import {
   type AdminEvent,
   type CreateAdminEventPayload,
 } from '../../events/services/eventApi';
-import {
-  type PaymentOrder,
-} from '../../order-payment/services/paymentService';
 
 function formatDate(value: string): string {
   const date = new Date(value);

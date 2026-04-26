@@ -14,11 +14,19 @@
       "type": "java.lang.Object"
     },
     {
+      "name": "app.auth.email",
+      "type": "java.lang.Object"
+    },
+    {
       "name": "app.minio",
       "type": "java.lang.Object"
     },
     {
       "name": "app.flash-sale",
+      "type": "java.lang.Object"
+    },
+    {
+      "name": "app.virtual-queue",
       "type": "java.lang.Object"
     },
     {
@@ -51,6 +59,21 @@
       "name": "app.auth.dev-return-code",
       "type": "java.lang.Boolean",
       "description": "Return OTP in API response when email sending fails in development."
+    },
+    {
+      "name": "app.auth.email.queue-name",
+      "type": "java.lang.String",
+      "description": "RabbitMQ queue name for asynchronous auth emails."
+    },
+    {
+      "name": "app.auth.email.exchange-name",
+      "type": "java.lang.String",
+      "description": "RabbitMQ exchange name for asynchronous auth emails."
+    },
+    {
+      "name": "app.auth.email.routing-key",
+      "type": "java.lang.String",
+      "description": "RabbitMQ routing key used for asynchronous auth email messages."
     },
     {
       "name": "app.minio.enabled",
@@ -106,6 +129,41 @@
       "name": "app.flash-sale.redis-hold-seconds",
       "type": "java.lang.Integer",
       "description": "How long seat holds remain in Redis before expiration."
+    },
+    {
+      "name": "app.virtual-queue.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable or disable waiting room virtual queue."
+    },
+    {
+      "name": "app.virtual-queue.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Number of users admitted per dispatch batch."
+    },
+    {
+      "name": "app.virtual-queue.max-active-tokens",
+      "type": "java.lang.Integer",
+      "description": "Maximum admitted users allowed concurrently."
+    },
+    {
+      "name": "app.virtual-queue.admit-ttl-seconds",
+      "type": "java.lang.Long",
+      "description": "How long an admitted virtual queue token remains valid in seconds."
+    },
+    {
+      "name": "app.virtual-queue.waiting-record-ttl-seconds",
+      "type": "java.lang.Long",
+      "description": "How long a waiting room queue record is retained in Redis in seconds."
+    },
+    {
+      "name": "app.virtual-queue.estimated-batch-seconds",
+      "type": "java.lang.Long",
+      "description": "Estimated processing time per batch used for wait-time approximation."
+    },
+    {
+      "name": "app.virtual-queue.dispatch-cooldown-ms",
+      "type": "java.lang.Long",
+      "description": "Cooldown interval between dispatch attempts in milliseconds."
     },
     {
       "name": "app.events.featured-limit",

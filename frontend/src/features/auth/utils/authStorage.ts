@@ -51,9 +51,6 @@ export function setAuthSession(token: string, role: string, username?: string): 
     return;
   }
 
-  localStorage.setItem('token', normalizedToken);
-  localStorage.setItem('role', normalizedRole);
-
   try {
     sessionStorage.setItem('token', normalizedToken);
     sessionStorage.setItem('role', normalizedRole);
@@ -62,7 +59,6 @@ export function setAuthSession(token: string, role: string, username?: string): 
   }
 
   if (username) {
-    localStorage.setItem('username', username);
     try {
       sessionStorage.setItem('username', username);
     } catch {
@@ -72,10 +68,15 @@ export function setAuthSession(token: string, role: string, username?: string): 
 }
 
 export function getAuthSession(): { token: string | null; role: RoleType | null; username: string | null } {
-  const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const storedToken = sessionStorage.getItem('token');
   const token = normalizeStoredToken(storedToken);
-  const role = localStorage.getItem('role') || sessionStorage.getItem('role');
-  const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+  const role = sessionStorage.getItem('role');
+  const username = sessionStorage.getItem('username');
+
+  // Cleanup from previous implementation that persisted auth in localStorage.
+  localStorage.removeItem('token');
+  localStorage.removeItem('role');
+  localStorage.removeItem('username');
 
   if (!token) {
     return {

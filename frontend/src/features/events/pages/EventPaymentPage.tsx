@@ -4,11 +4,21 @@ import { getAuthSession } from '../../auth/utils/authStorage';
 import { checkoutPayment } from '../../order-payment/services/paymentService';
 import { removePendingReservation } from '../../order-payment/services/pendingReservationService';
 import { getPublicEventDetail, getPublicSeatMap, type SeatMapSeat, type UserEventDetail } from '../services/eventService';
+import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
+import {
+  clearAllQueueTokensInSession,
+  clearQueueTokenInSession,
+  getQueueAdmittedUntilFromSession,
+  getQueueTokenFromSession,
+  setQueueAdmittedUntilInSession,
+  setQueueTokenInSession,
+} from '../utils/queueSessionStorage';
 import './EventPaymentPage.css';
 
 type PaymentLocationState = {
   seatIds?: number[];
   reservationId?: string;
+  queueToken?: string;
 };
 
 function formatVnd(value: number): string {
@@ -19,13 +29,34 @@ const BANK_TRANSFER_INFO = {
   bankName: 'MB Bank',
   accountNumber: '0359547917',
 };
+const HEARTBEAT_INTERVAL_MS = 30000;
+
+function redirectToEventListWithHardReload(): void {
+  clearAllQueueTokensInSession();
+  window.location.href = '/user';
+}
 
 export default function EventPaymentPage() {
   const navigate = useNavigate();
   const { eventId } = useParams();
+  const parsedEventId = Number(eventId);
   const location = useLocation();
   const { token } = getAuthSession();
-  const { seatIds = [], reservationId } = (location.state as PaymentLocationState) || {};
+  const {
+    seatIds = [],
+    reservationId,
+    queueToken: queueTokenFromState,
+  } = (location.state as PaymentLocationState) || {};
+  const queueToken = queueTokenFromState || getQueueTokenFromSession(parsedEventId);
+
+  useEffect(() => {
+    if (!Number.isFinite(parsedEventId) || !queueToken) {
+      return;
+    }
+
+    setQueueTokenInSession(parsedEventId, queueToken);
+    setQueueAdmittedUntilInSession(parsedEventId, getQueueAdmittedUntilFromSession(parsedEventId));
+  }, [parsedEventId, queueToken]);
 
   const [eventDetail, setEventDetail] = useState<UserEventDetail | null>(null);
   const [seatMap, setSeatMap] = useState<SeatMapSeat[]>([]);
@@ -80,6 +111,35 @@ export default function EventPaymentPage() {
     void loadData();
   }, [eventId, navigate, seatIds, token]);
 
+  useEffect(() => {
+    const id = Number(eventId);
+    if (!Number.isFinite(id) || !queueToken || !token || bookingCompleted) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void heartbeatVirtualQueue(id, queueToken)
+        .then(status => {
+          setQueueAdmittedUntilInSession(id, status.admittedUntilEpochMs ?? null);
+        })
+        .catch(() => {
+          // Checkout flow handles expired/invalid queue token from backend responses.
+        });
+    }, HEARTBEAT_INTERVAL_MS);
+
+    const handleBeforeUnload = () => {
+      sendVirtualQueueReleaseBeacon(id, queueToken);
+      clearQueueTokenInSession(id);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [bookingCompleted, eventId, queueToken, token]);
+
   const selectedSeats = useMemo(
     () => seatMap.filter(seat => seatIds.includes(seat.id)),
     [seatIds, seatMap],
@@ -91,7 +151,12 @@ export default function EventPaymentPage() {
   );
 
   const handleClose = () => {
-    navigate('/user', { replace: true, state: { activeMenu: 'events' } });
+    if (Number.isFinite(parsedEventId) && queueToken) {
+      sendVirtualQueueReleaseBeacon(parsedEventId, queueToken);
+    }
+
+    clearAllQueueTokensInSession();
+    window.location.href = '/user';
   };
 
   const handleCheckout = async () => {
@@ -112,6 +177,7 @@ export default function EventPaymentPage() {
         eventId: id,
         seatIds,
         paymentProof,
+        queueToken,
       });
 
       setCheckoutError('');
@@ -119,6 +185,7 @@ export default function EventPaymentPage() {
       setBookedQueueId(order.queueId);
       setBookedSeatCodes(order.seatCodes);
       setPaymentProof(null);
+      clearAllQueueTokensInSession();
 
       if (reservationId) {
         removePendingReservation(reservationId);
@@ -162,7 +229,7 @@ export default function EventPaymentPage() {
                 <button
                   type="button"
                   className="event-payment-primary"
-                  onClick={() => navigate('/user', { state: { activeMenu: 'events' } })}
+                  onClick={redirectToEventListWithHardReload}
                 >
                   Về danh sách sự kiện
                 </button>

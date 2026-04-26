@@ -11,6 +11,8 @@ interface AccountProfilePanelProps {
   avatarUrl: string;
   selectedAvatarFileName: string;
   phoneNumber: string;
+  queueSlotSecondsLeft?: number | null;
+  onReturnToBooking?: () => void;
   onAvatarFileChange: (file: File | null) => void;
   onPhoneNumberChange: (value: string) => void;
   onProfileChange: (value: string) => void;
@@ -28,6 +30,8 @@ export default function AccountProfilePanel({
   avatarUrl,
   selectedAvatarFileName,
   phoneNumber,
+  queueSlotSecondsLeft = null,
+  onReturnToBooking,
   onAvatarFileChange,
   onPhoneNumberChange,
   onProfileChange,
@@ -52,6 +56,22 @@ export default function AccountProfilePanel({
     <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
       <h2 className="mb-1 text-2xl font-bold text-white">Tài khoản</h2>
       <p className="mb-5 text-sm text-gray-400">Cập nhật hồ sơ, avatar và số điện thoại của bạn.</p>
+
+      {queueSlotSecondsLeft != null ? (
+        <div className="mb-4 rounded-xl border border-yellow-500/45 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+          <p className="font-semibold">Bạn đang giữ quyền ưu tiên đặt vé.</p>
+          <p className="mt-1">Thời gian còn lại: {Math.floor(queueSlotSecondsLeft / 60)}:{String(queueSlotSecondsLeft % 60).padStart(2, '0')}</p>
+          {onReturnToBooking ? (
+            <button
+              type="button"
+              onClick={onReturnToBooking}
+              className="mt-3 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110"
+            >
+              Quay lại chọn ghế
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <form className="space-y-4" onSubmit={onSubmit}>
         {error && <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}

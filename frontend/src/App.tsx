@@ -4,6 +4,7 @@ import EventsPage from './features/events/pages/EventsPage';
 import EventDetailPage from './features/events/pages/EventDetailPage';
 import EventSeatBookingPage from './features/events/pages/EventSeatBookingPage';
 import EventPaymentPage from './features/events/pages/EventPaymentPage';
+import EventWaitingRoomPage from './features/events/pages/EventWaitingRoomPage';
 import AdminPaymentsReviewPage from './features/order-payment/pages/AdminPaymentsReviewPage';
 import AuthPage from './features/auth/pages/AuthPage';
 import UserDashboard from './features/user/pages/UserDashboard';
@@ -50,6 +51,14 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="USER">
               <EventDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/events/:eventId/waiting-room"
+          element={
+            <ProtectedRoute requiredRole="USER">
+              <EventWaitingRoomPage />
             </ProtectedRoute>
           }
         />

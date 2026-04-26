@@ -37,6 +37,7 @@ interface CheckoutPayload {
   eventId: number;
   seatIds: number[];
   paymentProof: File;
+  queueToken?: string;
 }
 
 function buildHeaders(requireAdmin = false): HeadersInit {
@@ -69,6 +70,7 @@ export async function checkoutPayment(payload: CheckoutPayload): Promise<Payment
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(payload.queueToken ? { 'X-Queue-Token': payload.queueToken } : {}),
     },
     body: formData,
   });
@@ -81,7 +83,7 @@ export async function checkoutPayment(payload: CheckoutPayload): Promise<Payment
   return await response.json();
 }
 
-export async function holdSeatsForPayment(eventId: number, seatIds: number[]): Promise<SeatHoldResponse> {
+export async function holdSeatsForPayment(eventId: number, seatIds: number[], queueToken?: string): Promise<SeatHoldResponse> {
   const { token } = getAuthSession();
   if (!token) {
     throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
@@ -99,6 +101,7 @@ export async function holdSeatsForPayment(eventId: number, seatIds: number[]): P
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(queueToken ? { 'X-Queue-Token': queueToken } : {}),
     },
     body: formData,
   });

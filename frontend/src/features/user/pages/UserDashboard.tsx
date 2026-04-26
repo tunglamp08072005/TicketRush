@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearAuthSession, getAuthSession } from '../../auth/utils/authStorage';
 import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../services/userProfileService';
+import { heartbeatVirtualQueue } from '../../events/services/virtualQueueService';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import MyTicketsSection from '../components/dashboard/MyTicketsSection';
@@ -20,6 +21,14 @@ import {
   removePendingReservation,
   type PendingReservation,
 } from '../../order-payment/services/pendingReservationService';
+import {
+  getQueueAdmittedUntilFromSession,
+  getQueueTokenFromSession,
+  listQueueEventIdsInSession,
+  setQueueAdmittedUntilInSession,
+} from '../../events/utils/queueSessionStorage';
+
+const PROFILE_HEARTBEAT_INTERVAL_MS = 30000;
 
 function formatTicketDate(value: string | null): string {
   if (!value) {
@@ -88,6 +97,9 @@ export default function UserDashboard() {
   const [success, setSuccess] = useState('');
   const [ticketsError, setTicketsError] = useState('');
   const [paymentsError, setPaymentsError] = useState('');
+  const [queueEventId, setQueueEventId] = useState<number | null>(null);
+  const [queueReturnPath, setQueueReturnPath] = useState('');
+  const [queueSlotSecondsLeft, setQueueSlotSecondsLeft] = useState<number | null>(null);
   const [eventsSearchKeyword, setEventsSearchKeyword] = useState('');
   const [eventsSearchSubmitToken, setEventsSearchSubmitToken] = useState(0);
   const [ticketsData, setTicketsData] = useState<TicketItem[]>([]);
@@ -101,12 +113,72 @@ export default function UserDashboard() {
   const [phoneNumber, setPhoneNumber] = useState('');
 
   useEffect(() => {
-    const nextMenu = (location.state as { activeMenu?: DashboardMenuKey } | null)?.activeMenu;
+    const state = (location.state as {
+      activeMenu?: DashboardMenuKey;
+      queueEventId?: number;
+      returnToBookingPath?: string;
+    } | null);
+
+    const nextMenu = state?.activeMenu;
     if (nextMenu) {
       setActiveMenu(nextMenu);
       window.history.replaceState({}, document.title);
     }
+
+    if (state?.queueEventId && Number.isFinite(state.queueEventId)) {
+      setQueueEventId(state.queueEventId);
+    } else {
+      const availableQueueEvents = listQueueEventIdsInSession();
+      setQueueEventId(availableQueueEvents.length > 0 ? availableQueueEvents[0] : null);
+    }
+
+    setQueueReturnPath(state?.returnToBookingPath || '');
   }, [location.state]);
+
+  useEffect(() => {
+    if (activeMenu !== 'account' || !queueEventId || !Number.isFinite(queueEventId)) {
+      setQueueSlotSecondsLeft(null);
+      return;
+    }
+
+    const queueToken = getQueueTokenFromSession(queueEventId);
+    if (!queueToken) {
+      setQueueSlotSecondsLeft(null);
+      return;
+    }
+
+    const refreshCountdown = () => {
+      const admittedUntil = getQueueAdmittedUntilFromSession(queueEventId);
+      if (!admittedUntil || admittedUntil <= Date.now()) {
+        setQueueSlotSecondsLeft(null);
+        return;
+      }
+
+      setQueueSlotSecondsLeft(Math.max(0, Math.ceil((admittedUntil - Date.now()) / 1000)));
+    };
+
+    const beat = () => {
+      void heartbeatVirtualQueue(queueEventId, queueToken)
+        .then(status => {
+          setQueueAdmittedUntilInSession(queueEventId, status.admittedUntilEpochMs ?? null);
+          refreshCountdown();
+        })
+        .catch(() => {
+          setQueueSlotSecondsLeft(null);
+        });
+    };
+
+    refreshCountdown();
+    beat();
+
+    const heartbeatTimer = window.setInterval(beat, PROFILE_HEARTBEAT_INTERVAL_MS);
+    const countdownTimer = window.setInterval(refreshCountdown, 1000);
+
+    return () => {
+      window.clearInterval(heartbeatTimer);
+      window.clearInterval(countdownTimer);
+    };
+  }, [activeMenu, queueEventId]);
 
   useEffect(() => {
     setPendingReservations(getPendingReservations());
@@ -241,6 +313,10 @@ export default function UserDashboard() {
           avatarUrl={avatarUrl}
           selectedAvatarFileName={avatarFile?.name || ''}
           phoneNumber={phoneNumber}
+          queueSlotSecondsLeft={queueSlotSecondsLeft}
+          onReturnToBooking={queueEventId
+            ? () => navigate(queueReturnPath || `/user/events/${queueEventId}/booking`)
+            : undefined}
           onAvatarFileChange={file => {
             setAvatarFile(file);
             setSuccess('');

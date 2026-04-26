@@ -8,7 +8,7 @@ import com.ticketrush.features.auth.dto.RegisterRequest;
 import com.ticketrush.features.auth.dto.RegisterVerifyRequest;
 import com.ticketrush.features.auth.dto.ResetPasswordRequest;
 import com.ticketrush.common.util.JwtUtil;
-import com.ticketrush.features.auth.service.EmailService;
+import com.ticketrush.features.auth.service.AuthEmailQueueProducer;
 import com.ticketrush.features.auth.service.VerificationCodeService;
 import com.ticketrush.features.user.entity.User;
 import com.ticketrush.features.user.service.UserService;
@@ -31,7 +31,7 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private EmailService emailService;
+    private AuthEmailQueueProducer authEmailQueueProducer;
 
     @Autowired
     private VerificationCodeService verificationCodeService;
@@ -60,17 +60,20 @@ public class AuthController {
 
         String code = verificationCodeService.issueRegistrationCode(email, username, password);
         try {
-            emailService.sendVerificationCode(
+            authEmailQueueProducer.enqueueVerificationEmail(
                 email,
                 "TicketRush - Ma xac thuc dang ky",
                 "Ma xac thuc dang ky cua ban la: " + code + "\nMa co hieu luc trong 10 phut."
             );
+            if (devReturnCode) {
+                return ResponseEntity.ok("[DEV] Verification code queued. OTP: " + code);
+            }
             return ResponseEntity.ok("Verification code sent to email");
         } catch (Exception ex) {
             if (devReturnCode) {
                 return ResponseEntity.ok("[DEV] OTP registration code: " + code);
             }
-            return ResponseEntity.status(500).body("Cannot send verification email: " + ex.getMessage());
+            return ResponseEntity.status(500).body("Cannot queue verification email: " + ex.getMessage());
         }
     }
 
@@ -149,17 +152,20 @@ public class AuthController {
 
         String code = verificationCodeService.issueResetCode(email);
         try {
-            emailService.sendVerificationCode(
+            authEmailQueueProducer.enqueueVerificationEmail(
                 email,
                 "TicketRush - Ma xac thuc dat lai mat khau",
                 "Ma xac thuc dat lai mat khau cua ban la: " + code + "\nMa co hieu luc trong 10 phut."
             );
+            if (devReturnCode) {
+                return ResponseEntity.ok("[DEV] Reset code queued. OTP: " + code);
+            }
             return ResponseEntity.ok("Reset code sent to email");
         } catch (Exception ex) {
             if (devReturnCode) {
                 return ResponseEntity.ok("[DEV] OTP reset code: " + code);
             }
-            return ResponseEntity.status(500).body("Cannot send reset email: " + ex.getMessage());
+            return ResponseEntity.status(500).body("Cannot queue reset email: " + ex.getMessage());
         }
     }
 
