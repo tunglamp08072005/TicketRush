@@ -510,12 +510,16 @@ export default function UserDashboard() {
                         type="button"
                         disabled={minutesLeft <= 0}
                         onClick={() => {
-                          navigate(`/user/events/${item.eventId}/booking/payment`, {
-                            state: {
-                              seatIds: item.seatIds,
-                              reservationId: item.id,
-                            },
-                          });
+                          navigate(
+                            `/user/events/${item.eventId}/booking/payment`,
+                            {
+                              state: {
+                                seatIds: item.seatIds,
+                                reservationId: item.id,
+                                queueToken: getQueueTokenFromSession(item.eventId) || undefined,
+                              },
+                            }
+                          );
                         }}
                         className="rounded-lg bg-gradient-to-r from-red-500 to-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
                       >

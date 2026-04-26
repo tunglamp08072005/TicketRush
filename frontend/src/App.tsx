@@ -41,6 +41,8 @@ export default function App() {
         <Route path="/events/:eventId" element={<EventDetailPage />} />
         <Route path="/events/:eventId/booking" element={<EventSeatBookingPage />} />
         <Route path="/events/:eventId/booking/payment" element={<EventPaymentPage />} />
+        {/* Route mới: thanh toán với orderId cụ thể */}
+        <Route path="/user/events/:eventId/payment/:orderId" element={<ProtectedRoute requiredRole="USER"><EventPaymentPage /></ProtectedRoute>} />
         <Route path="/auth" element={<AuthPage />} />
         <Route
           path="/user"

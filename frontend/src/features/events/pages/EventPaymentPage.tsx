@@ -1,8 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { fetchMyPayments } from '../../order-payment/services/paymentService';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { checkoutPayment } from '../../order-payment/services/paymentService';
-import { getPendingReservations, removePendingReservation } from '../../order-payment/services/pendingReservationService';
+import { removePendingReservation } from '../../order-payment/services/pendingReservationService';
 import { getPublicEventDetail, getPublicSeatMap, type SeatMapSeat, type UserEventDetail } from '../services/eventService';
 import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
 import {
@@ -21,7 +22,7 @@ type PaymentLocationState = {
 };
 
 function formatVnd(value: number): string {
-  return `${value.toLocaleString('vi-VN')}Ä‘`;
+  return `${value.toLocaleString('vi-VN')}đ`;
 }
 
 const BANK_TRANSFER_INFO = {
@@ -38,24 +39,48 @@ const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
 
 export default function EventPaymentPage() {
   const navigate = useNavigate();
-  const { eventId } = useParams();
+  const { eventId, orderId } = useParams();
   const parsedEventId = Number(eventId);
+  const parsedOrderId = orderId ? Number(orderId) : undefined;
   const location = useLocation();
   const { token } = getAuthSession();
   const {
     seatIds: seatIdsFromState = [],
-    reservationId,
+    reservationId: reservationIdFromState,
     queueToken: queueTokenFromState,
   } = (location.state as PaymentLocationState) || {};
+
+  // State for fetched order (if orderId is present)
+  const [orderData, setOrderData] = useState<any>(null);
+  const [orderLoading, setOrderLoading] = useState(!!parsedOrderId);
+
+  // If orderId is present, fetch order from backend
+  useEffect(() => {
+    if (!parsedOrderId) return;
+    setOrderLoading(true);
+    fetchMyPayments()
+      .then(orders => {
+        const found = orders.find(o => o.orderId === parsedOrderId);
+        if (found) {
+          setOrderData(found);
+        }
+      })
+      .finally(() => {
+        setOrderLoading(false);
+      });
+  }, [parsedOrderId]);
+
+  // Derive seatIds, reservationId, queueToken
+  const seatIds = useMemo(() => {
+    if (orderData) {
+      // Prefer explicit seatIds stored on the order object, then fall back to state
+      return orderData.seatIds?.length ? orderData.seatIds : seatIdsFromState;
+    }
+    return seatIdsFromState;
+  }, [orderData, seatIdsFromState]);
+
+  const reservationId = orderData?.queueId || reservationIdFromState;
   const queueToken = queueTokenFromState || getQueueTokenFromSession(parsedEventId);
-  const pendingReservation = useMemo(
-    () => (reservationId ? getPendingReservations().find(item => item.id === reservationId) ?? null : null),
-    [reservationId],
-  );
-  const seatIds = useMemo(
-    () => (Array.isArray(seatIdsFromState) && seatIdsFromState.length > 0 ? seatIdsFromState : pendingReservation?.seatIds ?? []),
-    [pendingReservation?.seatIds, seatIdsFromState],
-  );
 
   useEffect(() => {
     if (!Number.isFinite(parsedEventId) || !queueToken) {
@@ -83,20 +108,32 @@ export default function EventPaymentPage() {
       return;
     }
 
+    // Wait for order data to finish loading before doing any redirect
+    if (orderLoading) {
+      return;
+    }
+
     const id = Number(eventId);
-    if (Number.isFinite(id) && !queueToken && !bookingCompleted) {
-      setError('PhiĂªn vĂ o cá»•ng Ä‘Ă£ háº¿t hoáº·c bá»‹ máº¥t. Vui lĂ²ng vĂ o láº¡i phĂ²ng chá» Ä‘á»ƒ tiáº¿p tá»¥c thanh toĂ¡n.');
+
+    // When coming from dashboard (existing reservation), queueToken & seatIds
+    // are provided via location state — skip the "session expired" redirect.
+    const isResumedReservation = !!reservationIdFromState;
+
+    // Only require queueToken when NOT resuming an existing reservation
+    if (!isResumedReservation && Number.isFinite(id) && !queueToken && !bookingCompleted) {
+      setError('Phiên vào cổng đã hết hoặc bị mất. Vui lòng vào lại phòng chờ để tiếp tục thanh toán.');
       navigate(`/user/events/${id}/waiting-room`, { replace: true });
       return;
     }
 
-    if (!Array.isArray(seatIds) || seatIds.length === 0) {
+    // Only redirect back to seat booking when NOT resuming an existing reservation
+    if (!isResumedReservation && (!Array.isArray(seatIds) || seatIds.length === 0)) {
       navigate(`/user/events/${eventId}/booking`, { replace: true });
       return;
     }
 
     if (!Number.isFinite(id)) {
-      setError('Sá»± kiá»‡n khĂ´ng há»£p lá»‡');
+      setError('Sự kiện không hợp lệ');
       setLoading(false);
       return;
     }
@@ -113,9 +150,9 @@ export default function EventPaymentPage() {
         setError('');
       } catch (err) {
         if (err instanceof Error) {
-          setError(err.message || 'KhĂ´ng thá»ƒ táº£i dá»¯ liá»‡u thanh toĂ¡n');
+          setError(err.message || 'Không thể tải dữ liệu thanh toán');
         } else {
-          setError('KhĂ´ng thá»ƒ táº£i dá»¯ liá»‡u thanh toĂ¡n');
+          setError('Không thể tải dữ liệu thanh toán');
         }
       } finally {
         setLoading(false);
@@ -123,7 +160,7 @@ export default function EventPaymentPage() {
     };
 
     void loadData();
-  }, [bookingCompleted, eventId, navigate, queueToken, seatIds, token]);
+  }, [bookingCompleted, eventId, navigate, orderLoading, queueToken, reservationIdFromState, seatIds, token]);
 
   useEffect(() => {
     const id = Number(eventId);
@@ -196,17 +233,17 @@ export default function EventPaymentPage() {
   const handleCheckout = async () => {
     const id = Number(eventId);
     if (!Number.isFinite(id)) {
-      setCheckoutError('Sá»± kiá»‡n khĂ´ng há»£p lá»‡');
+      setCheckoutError('Sự kiện không hợp lệ');
       return;
     }
 
     if (!paymentProof) {
-      setCheckoutError('Vui lĂ²ng táº£i lĂªn áº£nh minh chá»©ng thanh toĂ¡n.');
+      setCheckoutError('Vui lòng tải lên ảnh minh chứng thanh toán.');
       return;
     }
 
     if (!queueToken) {
-      setCheckoutError('KhĂ´ng tĂ¬m tháº¥y queue token há»£p lá»‡. Vui lĂ²ng vĂ o láº¡i phĂ²ng chá» vĂ  thá»­ láº¡i.');
+      setCheckoutError('Không tìm thấy queue token hợp lệ. Vui lòng vào lại phòng chờ và thử lại.');
       return;
     }
 
@@ -231,9 +268,9 @@ export default function EventPaymentPage() {
       }
     } catch (err) {
       if (err instanceof Error) {
-        setCheckoutError(err.message || 'KhĂ´ng thá»ƒ táº¡o Ä‘Æ¡n thanh toĂ¡n');
+        setCheckoutError(err.message || 'Không thể tạo đơn thanh toán');
       } else {
-        setCheckoutError('KhĂ´ng thá»ƒ táº¡o Ä‘Æ¡n thanh toĂ¡n');
+        setCheckoutError('Không thể tạo đơn thanh toán');
       }
     } finally {
       setSubmitting(false);
@@ -247,65 +284,65 @@ export default function EventPaymentPage() {
       >
         <section className="event-payment-card">
           <header className="event-payment-header">
-            <h1>Thanh toĂ¡n Ä‘áº·t gháº¿</h1>
+            <h1>Thanh toán đặt ghế</h1>
             {!bookingCompleted ? (
               <button type="button" className="event-payment-close" onClick={handleClose}>
-                ÄĂ³ng
+                Đóng
               </button>
             ) : null}
           </header>
 
-          {loading && <p className="event-payment-feedback">Äang táº£i dá»¯ liá»‡u thanh toĂ¡n...</p>}
+          {loading && <p className="event-payment-feedback">Đang tải dữ liệu thanh toán...</p>}
           {error && !loading && <p className="event-payment-feedback event-payment-error">{error}</p>}
 
           {!loading && !error ? (
             bookingCompleted ? (
               <div className="event-payment-success">
-                <h2>Báº¡n Ä‘Ă£ Ä‘áº·t gháº¿ thĂ nh cĂ´ng</h2>
-                <p>MĂ£ Ä‘Æ¡n: <strong>{bookedQueueId}</strong></p>
-                <p>Gháº¿ Ä‘Ă£ Ä‘áº·t: <strong>{bookedSeatCodes.join(', ')}</strong></p>
-                <p>Vui lĂ²ng chá» admin duyá»‡t thanh toĂ¡n Ä‘á»ƒ vĂ© Ä‘Æ°á»£c xĂ¡c nháº­n.</p>
+                <h2>Bạn đã đặt ghế thành công</h2>
+                <p>Mã đơn: <strong>{bookedQueueId}</strong></p>
+                <p>Ghế đã đặt: <strong>{bookedSeatCodes.join(', ')}</strong></p>
+                <p>Vui lòng chờ admin duyệt thanh toán để vé được xác nhận.</p>
                 <button
                   type="button"
                   className="event-payment-primary"
                   onClick={redirectToEventListWithHardReload}
                 >
-                  Vá» danh sĂ¡ch sá»± kiá»‡n
+                  Về danh sách sự kiện
                 </button>
                 <button
                   type="button"
                   className="event-payment-primary"
                   onClick={() => navigate('/user', { state: { activeMenu: 'payments' } })}
                 >
-                  Vá» má»¥c thanh toĂ¡n
+                  Về mục thanh toán
                 </button>
               </div>
             ) : (
               <div className="event-payment-body">
-                <p className="event-payment-event">{eventDetail?.name || 'Sá»± kiá»‡n'}</p>
-                <p className="event-payment-note">Báº¡n cĂ³ thá»ƒ Ä‘Ă³ng bÆ°á»›c thanh toĂ¡n báº±ng nĂºt ÄĂ³ng. Náº¿u chÆ°a xĂ¡c nháº­n, dá»¯ liá»‡u sáº½ khĂ´ng Ä‘Æ°á»£c lÆ°u.</p>
+                <p className="event-payment-event">{eventDetail?.name || 'Sự kiện'}</p>
+                <p className="event-payment-note">Bạn có thể đóng bước thanh toán bằng nút Đóng. Nếu chưa xác nhận, dữ liệu sẽ không được lưu.</p>
 
                 <div className="event-payment-bank-box">
-                  <p><strong>NgĂ¢n hĂ ng:</strong> {BANK_TRANSFER_INFO.bankName}</p>
-                  <p><strong>Sá»‘ tĂ i khoáº£n:</strong> {BANK_TRANSFER_INFO.accountNumber}</p>
-                  <p><strong>Ná»™i dung chuyá»ƒn khoáº£n:</strong> {eventDetail?.id || eventId}-{seatIds.join(',')}</p>
+                  <p><strong>Ngân hàng:</strong> {BANK_TRANSFER_INFO.bankName}</p>
+                  <p><strong>Số tài khoản:</strong> {BANK_TRANSFER_INFO.accountNumber}</p>
+                  <p><strong>Nội dung chuyển khoản:</strong> {eventDetail?.id || eventId}-{seatIds.join(',')}</p>
                 </div>
 
                 <div className="event-payment-summary">
-                  <p><strong>Gháº¿ Ä‘Ă£ chá»n:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'KhĂ´ng cĂ³ gháº¿ há»£p lá»‡'}</p>
-                  <p><strong>Tá»•ng tiá»n:</strong> {formatVnd(selectedTotal)}</p>
-                  <p><strong>Cáº­p nháº­t tráº¡ng thĂ¡i gháº¿:</strong> Má»—i {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giĂ¢y</p>
+                  <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Không có ghế hợp lệ'}</p>
+                  <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+                  <p><strong>Cập nhật trạng thái ghế:</strong> Mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây</p>
                 </div>
 
                 <label className="event-payment-upload" htmlFor="paymentProof">
-                  Minh chá»©ng thanh toĂ¡n
+                  Minh chứng thanh toán
                   <input
                     id="paymentProof"
                     type="file"
                     accept="image/*"
                     onChange={event => setPaymentProof(event.target.files?.[0] ?? null)}
                   />
-                  <span>{paymentProof ? paymentProof.name : 'ChÆ°a chá»n áº£nh'}</span>
+                  <span>{paymentProof ? paymentProof.name : 'Chưa chọn ảnh'}</span>
                 </label>
 
                 {checkoutError && <p className="event-payment-feedback event-payment-error">{checkoutError}</p>}
@@ -316,7 +353,7 @@ export default function EventPaymentPage() {
                   disabled={submitting || selectedSeats.length === 0}
                   onClick={() => void handleCheckout()}
                 >
-                  {submitting ? 'Äang gá»­i yĂªu cáº§u...' : 'XĂ¡c nháº­n thanh toĂ¡n'}
+                  {submitting ? 'Đang gửi yêu cầu...' : 'Xác nhận thanh toán'}
                 </button>
               </div>
             )
@@ -326,4 +363,3 @@ export default function EventPaymentPage() {
     </main>
   );
 }
-
