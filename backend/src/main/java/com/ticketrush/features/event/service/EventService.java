@@ -37,6 +37,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final SeatRepository seatRepository;
     private final TicketOrderRepository ticketOrderRepository;
+    private final PricingStrategyService pricingStrategyService;
 
     @Value("${app.events.featured-limit:6}")
     private int featuredLimit;
@@ -44,10 +45,12 @@ public class EventService {
     @Value("${app.seats.hold-minutes:10}")
     private int defaultSeatHoldMinutes;
 
-    public EventService(EventRepository eventRepository, SeatRepository seatRepository, TicketOrderRepository ticketOrderRepository) {
+    public EventService(EventRepository eventRepository, SeatRepository seatRepository, 
+                       TicketOrderRepository ticketOrderRepository, PricingStrategyService pricingStrategyService) {
         this.eventRepository = eventRepository;
         this.seatRepository = seatRepository;
         this.ticketOrderRepository = ticketOrderRepository;
+        this.pricingStrategyService = pricingStrategyService;
     }
 
     @Transactional
@@ -165,8 +168,18 @@ public class EventService {
 
         seatRepository.releaseExpiredLocksByEventId(eventId, LocalDateTime.now());
 
-        return seatRepository.findSeatMapByEventId(eventId).stream()
-                .map(this::toSeatMapDto)
+        List<Seat> seats = seatRepository.findSeatMapByEventId(eventId);
+        Map<Long, BigDecimal> dynamicPriceByZoneId = seats.stream()
+                .map(Seat::getZone)
+                .collect(Collectors.toMap(
+                        EventZone::getId,
+                        pricingStrategyService::calculateDynamicPrice,
+                        (left, right) -> left,
+                        HashMap::new
+                ));
+
+        return seats.stream()
+                .map(seat -> toSeatMapDto(seat, dynamicPriceByZoneId.get(seat.getZone().getId())))
                 .toList();
     }
 
@@ -398,7 +411,7 @@ public class EventService {
         );
     }
 
-    private SeatMapSeatDto toSeatMapDto(Seat seat) {
+    private SeatMapSeatDto toSeatMapDto(Seat seat, BigDecimal dynamicPrice) {
         EventZone zone = seat.getZone();
         return new SeatMapSeatDto(
                 seat.getId(),
@@ -409,7 +422,7 @@ public class EventService {
                 seat.getRowLabel(),
                 seat.getSeatNumber(),
                 seat.getSeatCode(),
-                seat.getPrice(),
+                dynamicPrice,
                 seat.getStatus()
         );
     }

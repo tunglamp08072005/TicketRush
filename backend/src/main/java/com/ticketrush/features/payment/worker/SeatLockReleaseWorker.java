@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 public class SeatLockReleaseWorker {
 
     private static final Logger log = LoggerFactory.getLogger(SeatLockReleaseWorker.class);
-
     private final SeatRepository seatRepository;
 
     public SeatLockReleaseWorker(SeatRepository seatRepository) {

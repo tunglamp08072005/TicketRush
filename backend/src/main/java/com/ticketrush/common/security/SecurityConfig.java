@@ -72,6 +72,7 @@ public class SecurityConfig {
                     "/api/admin/events/**",
                     "/api/user/payments",
                     "/api/user/payments/**",
+                    "/api/public/payments/**",
                     "/api/admin/payments",
                     "/api/admin/payments/**",
                     "/api/admin/users",

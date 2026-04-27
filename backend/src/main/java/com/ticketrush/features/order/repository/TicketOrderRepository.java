@@ -2,7 +2,9 @@ package com.ticketrush.features.order.repository;
 
 import com.ticketrush.features.order.entity.TicketOrder;
 import com.ticketrush.features.payment.entity.PaymentStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -61,6 +63,19 @@ public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> 
         where o.id = :orderId
         """)
     Optional<TicketOrder> findDetailById(@Param("orderId") Long orderId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select distinct o
+        from TicketOrder o
+        left join fetch o.event
+        left join fetch o.user
+        left join fetch o.items i
+        left join fetch i.seat s
+        left join fetch s.zone z
+        where o.id = :orderId
+        """)
+    Optional<TicketOrder> findDetailByIdForUpdate(@Param("orderId") Long orderId);
 
         @Query("""
                 select o.event.id as eventId,
