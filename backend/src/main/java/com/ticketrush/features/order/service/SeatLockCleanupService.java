@@ -26,6 +26,7 @@ public class SeatLockCleanupService {
     }
 
     @Scheduled(fixedDelayString = "${app.seat-lock-release.fixed-delay-ms:30000}")
+    @Transactional
     public void cleanupExpiredSeatLocks() {
         List<ReleasedSeatSnapshot> releasedSeats = releaseExpiredSeatLocks();
         for (ReleasedSeatSnapshot releasedSeat : releasedSeats) {
