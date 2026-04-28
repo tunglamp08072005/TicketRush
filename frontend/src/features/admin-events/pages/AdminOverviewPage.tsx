@@ -101,11 +101,11 @@ export default function AdminOverviewPage() {
     .slice(0, 5);
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.2),_transparent_30%),linear-gradient(135deg,#ffffff_0%,#fff7ed_38%,#f8fafc_100%)] p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-600">Tổng quan hệ thống</p>
-        <h1 className="mt-2 text-3xl font-black text-slate-900">Bảng điều phối TicketRush</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+    <section className="space-y-6 p-6">
+      <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tổng quan hệ thống</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900">Bảng điều phối TicketRush</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
           Theo dõi nhanh nhịp mở bán, doanh thu, thanh toán chờ duyệt và mức sẵn sàng của người dùng trên cùng một màn hình.
         </p>
       </header>
@@ -118,38 +118,38 @@ export default function AdminOverviewPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-orange-100 text-orange-700">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600">
             <CalendarClock className="h-5 w-5" />
           </div>
           <p className="mt-4 text-sm text-slate-500">Sự kiện đang bán</p>
-          <p className="mt-1 text-3xl font-extrabold text-slate-900">{loading ? '...' : overviewStats.activeEvents}</p>
+          <p className="mt-1 text-3xl font-bold text-slate-900">{loading ? '...' : overviewStats.activeEvents}</p>
           <p className="mt-1 text-xs text-slate-400">{overviewStats.upcomingEvents} sự kiện sắp mở bán</p>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600">
             <CreditCard className="h-5 w-5" />
           </div>
           <p className="mt-4 text-sm text-slate-500">Doanh thu đã ghi nhận</p>
-          <p className="mt-1 text-2xl font-extrabold text-slate-900">{loading ? '...' : formatCurrency(overviewStats.totalRevenue)}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{loading ? '...' : formatCurrency(overviewStats.totalRevenue)}</p>
           <p className="mt-1 text-xs text-slate-400">{overviewStats.soldSeats.toLocaleString('vi-VN')} ghế đã bán</p>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600">
             <Users className="h-5 w-5" />
           </div>
           <p className="mt-4 text-sm text-slate-500">Người dùng trong hệ thống</p>
-          <p className="mt-1 text-3xl font-extrabold text-slate-900">{loading ? '...' : overviewStats.totalUsers}</p>
+          <p className="mt-1 text-3xl font-bold text-slate-900">{loading ? '...' : overviewStats.totalUsers}</p>
           <p className="mt-1 text-xs text-slate-400">{overviewStats.totalEvents} sự kiện đã tạo</p>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-rose-100 text-rose-700">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600">
             <AlertTriangle className="h-5 w-5" />
           </div>
           <p className="mt-4 text-sm text-slate-500">Thanh toán chờ xử lý</p>
-          <p className="mt-1 text-3xl font-extrabold text-slate-900">{loading ? '...' : overviewStats.pendingPayments}</p>
+          <p className="mt-1 text-3xl font-bold text-slate-900">{loading ? '...' : overviewStats.pendingPayments}</p>
           <p className="mt-1 text-xs text-slate-400">Ưu tiên duyệt để tránh user chờ lâu</p>
         </article>
       </div>

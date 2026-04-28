@@ -1,4 +1,13 @@
 import type { DashboardMenuKey, SidebarMenuItem } from '../../data/dashboardMockData';
+import {
+  Ticket,
+  CalendarDays,
+  CreditCard,
+  Bell,
+  User,
+  LayoutDashboard,
+  LogOut
+} from 'lucide-react';
 
 interface SidebarProps {
   menuItems: SidebarMenuItem[];
@@ -7,75 +16,37 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-function TicketIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M5 7.5A2.5 2.5 0 0 1 7.5 5h9A2.5 2.5 0 0 1 19 7.5V9a2 2 0 1 0 0 4v1.5A2.5 2.5 0 0 1 16.5 17h-9A2.5 2.5 0 0 1 5 14.5V13a2 2 0 1 0 0-4V7.5Z" />
-      <path d="M12 5v12" strokeDasharray="2.4 2.4" />
-    </svg>
-  );
-}
-
 function getMenuIcon(key: DashboardMenuKey) {
-  const baseClass = 'h-[18px] w-[18px]';
-
+  const className = 'h-[20px] w-[20px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3';
   switch (key) {
-    case 'events':
-      return (
-        <svg viewBox="0 0 24 24" className={baseClass} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M16 3v4M8 3v4M3 10h18" />
-        </svg>
-      );
-    case 'tickets':
-      return <TicketIcon />;
-    case 'payments':
-      return (
-        <svg viewBox="0 0 24 24" className={baseClass} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
-          <path d="M2.5 10h19" />
-          <path d="M7 15h3" />
-        </svg>
-      );
-    case 'notifications':
-      return (
-        <svg viewBox="0 0 24 24" className={baseClass} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M15 18H5.8c-.7 0-1.1-.8-.7-1.3l1.1-1.4a4 4 0 0 0 .8-2.5V10a5 5 0 0 1 10 0v2.8c0 .9.3 1.8.8 2.5l1.1 1.4c.4.5 0 1.3-.7 1.3H15Z" />
-          <path d="M10 18a2 2 0 0 0 4 0" />
-        </svg>
-      );
-    case 'account':
-      return (
-        <svg viewBox="0 0 24 24" className={baseClass} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="8" r="3.2" />
-          <path d="M5 20a7 7 0 1 1 14 0" />
-        </svg>
-      );
-    default:
-      return (
-        <svg viewBox="0 0 24 24" className={baseClass} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M12 3v12" />
-          <path d="M12 18.5h.01" />
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-      );
+    case 'events': return <CalendarDays className={className} />;
+    case 'tickets': return <Ticket className={className} />;
+    case 'payments': return <CreditCard className={className} />;
+    case 'notifications': return <Bell className={className} />;
+    case 'account': return <User className={className} />;
+    default: return <LayoutDashboard className={className} />;
   }
 }
 
 export default function Sidebar({ menuItems, activeMenu, onChangeMenu, onLogout }: SidebarProps) {
   return (
-    <aside className="flex h-screen w-[250px] shrink-0 flex-col border-r border-gray-800 bg-gray-950 px-4 py-6">
-      <div className="mb-10 flex items-center gap-3">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.45)]">
-          <TicketIcon />
-        </span>
-        <div>
-          <p className="text-xl font-bold tracking-wide text-white">TicketRush</p>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-gray-500">Event Dashboard</p>
+    <aside className="relative flex h-screen w-[270px] shrink-0 flex-col overflow-hidden border-r border-white/5 bg-[#0a0a0c]/80 backdrop-blur-2xl px-5 py-8 transition-all">
+      {/* Subtle glow effect behind sidebar */}
+      <div className="absolute -left-24 -top-24 h-48 w-48 rounded-full bg-orange-500/20 blur-[90px] pointer-events-none" />
+
+      <div className="relative mb-12 flex items-center gap-4 px-2">
+        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-orange-500 via-red-500 to-violet-600 p-px shadow-[0_0_24px_rgba(249,115,22,0.35)] before:absolute before:inset-0 before:rounded-[14px] before:bg-gradient-to-br before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity hover:before:opacity-100">
+          <div className="flex h-full w-full items-center justify-center rounded-[13px] bg-[#0a0a0c]/60 backdrop-blur-md">
+            <Ticket className="h-6 w-6 text-white" strokeWidth={2.5} />
+          </div>
+        </div>
+        <div className="flex flex-col">
+          <h1 className="bg-gradient-to-br from-white to-gray-400 bg-clip-text text-[22px] font-extrabold tracking-tight text-transparent">TicketRush</h1>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Dashboard</span>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1.5">
+      <nav className="relative flex-1 space-y-2">
         {menuItems.map(item => {
           const isActive = item.key === activeMenu;
           return (
@@ -83,31 +54,32 @@ export default function Sidebar({ menuItems, activeMenu, onChangeMenu, onLogout 
               key={item.key}
               type="button"
               onClick={() => onChangeMenu(item.key)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+              className={`group relative flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-all duration-300 ${
                 isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+                  ? 'bg-gradient-to-r from-orange-500/10 to-red-500/5 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] border border-orange-500/20'
+                  : 'text-gray-400 border border-transparent hover:bg-white/5 hover:text-white'
               }`}
             >
-              {getMenuIcon(item.key)}
-              <span>{item.label}</span>
+              {isActive && (
+                <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-gradient-to-b from-orange-500 to-red-500 shadow-[0_0_12px_rgba(249,115,22,0.8)]" />
+              )}
+              <span className={`flex items-center justify-center ${isActive ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                {getMenuIcon(item.key)}
+              </span>
+              <span className="tracking-wide">{item.label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="mt-4 border-t border-gray-800 pt-4">
+      <div className="relative mt-6 border-t border-white/5 pt-6">
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
+          className="group flex w-full items-center gap-3.5 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3.5 text-[15px] font-semibold text-red-400 transition-all duration-300 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]"
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <path d="M16 17l5-5-5-5" />
-            <path d="M21 12H9" />
-          </svg>
-          <span>Đăng xuất</span>
+          <LogOut className="h-[20px] w-[20px] transition-transform duration-300 group-hover:-translate-x-1" />
+          <span className="tracking-wide">Đăng xuất</span>
         </button>
       </div>
     </aside>

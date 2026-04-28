@@ -49,7 +49,6 @@ function formatDate(value: string): string {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-
   return date.toLocaleDateString('vi-VN', {
     day: '2-digit',
     month: 'long',
@@ -63,46 +62,25 @@ function formatVnd(value: number): string {
 
 function classifyCategory(event: UserEventDetail): CategoryOption {
   const joined = `${event.name} ${event.description}`.toLowerCase();
-
-  if (joined.includes('concert') || joined.includes('live') || joined.includes('show') || joined.includes('music') || joined.includes('nhạc')) {
-    return 'NHAC_SONG';
-  }
-  if (joined.includes('kịch') || joined.includes('sân khấu') || joined.includes('nghệ thuật')) {
-    return 'SAN_KHAU';
-  }
-  if (joined.includes('sport') || joined.includes('thể thao') || joined.includes('marathon')) {
-    return 'THE_THAO';
-  }
-  if (joined.includes('workshop') || joined.includes('hội thảo') || joined.includes('seminar')) {
-    return 'HOI_THAO';
-  }
-  if (joined.includes('tour') || joined.includes('trải nghiệm') || joined.includes('tham quan')) {
-    return 'TRAI_NGHIEM';
-  }
-
+  if (joined.includes('concert') || joined.includes('live') || joined.includes('show') || joined.includes('music') || joined.includes('nhạc')) return 'NHAC_SONG';
+  if (joined.includes('kịch') || joined.includes('sân khấu') || joined.includes('nghệ thuật')) return 'SAN_KHAU';
+  if (joined.includes('sport') || joined.includes('thể thao') || joined.includes('marathon')) return 'THE_THAO';
+  if (joined.includes('workshop') || joined.includes('hội thảo') || joined.includes('seminar')) return 'HOI_THAO';
+  if (joined.includes('tour') || joined.includes('trải nghiệm') || joined.includes('tham quan')) return 'TRAI_NGHIEM';
   return 'KHAC';
 }
 
 function mapLocationCode(location: string): LocationFilterOption {
   const normalized = location.toLowerCase();
-
-  if (normalized.includes('hồ chí minh') || normalized.includes('tp hcm') || normalized.includes('ho chi minh')) {
-    return 'HCM';
-  }
-  if (normalized.includes('hà nội') || normalized.includes('ha noi')) {
-    return 'HN';
-  }
-  if (normalized.includes('đà lạt') || normalized.includes('da lat')) {
-    return 'DA_LAT';
-  }
-
+  if (normalized.includes('hồ chí minh') || normalized.includes('tp hcm') || normalized.includes('ho chi minh')) return 'HCM';
+  if (normalized.includes('hà nội') || normalized.includes('ha noi')) return 'HN';
+  if (normalized.includes('đà lạt') || normalized.includes('da lat')) return 'DA_LAT';
   return 'OTHER';
 }
 
 function toEventViewModel(event: UserEventDetail): EventViewModel {
   const minPrice = event.zones.length > 0 ? Math.min(...event.zones.map(zone => zone.price)) : 0;
   const eventDate = new Date(event.eventStartDate);
-
   return {
     event,
     category: classifyCategory(event),
@@ -113,45 +91,29 @@ function toEventViewModel(event: UserEventDetail): EventViewModel {
 }
 
 function isDateMatched(option: DateFilterOption, eventDate: Date | null): boolean {
-  if (!eventDate || option === 'ALL_DAYS') {
-    return true;
-  }
-
+  if (!eventDate || option === 'ALL_DAYS') return true;
   const now = new Date();
-
-  if (option === 'TODAY') {
-    return eventDate.toDateString() === now.toDateString();
-  }
-
+  if (option === 'TODAY') return eventDate.toDateString() === now.toDateString();
   if (option === 'TOMORROW') {
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
     return eventDate.toDateString() === tomorrow.toDateString();
   }
-
   if (option === 'THIS_WEEKEND') {
     const day = now.getDay();
     const saturdayOffset = day === 6 ? 0 : day === 0 ? 6 : 6 - day;
     const sundayOffset = day === 0 ? 0 : 7 - day;
-
     const saturday = new Date(now);
-    saturday.setHours(0, 0, 0, 0);
     saturday.setDate(now.getDate() + saturdayOffset);
-
     const sunday = new Date(now);
-    sunday.setHours(23, 59, 59, 999);
     sunday.setDate(now.getDate() + sundayOffset);
-
     return eventDate >= saturday && eventDate <= sunday;
   }
-
   return eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear();
 }
 
 function isSameDay(left: Date, right: Date): boolean {
-  return left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate();
+  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
 }
 
 function formatIsoDate(date: Date): string {
@@ -162,10 +124,7 @@ function formatIsoDate(date: Date): string {
 }
 
 function parseIsoDate(value: string | null): Date | null {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   const date = new Date(`${value}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -173,11 +132,9 @@ function parseIsoDate(value: string | null): Date | null {
 function buildCalendarDays(monthCursor: Date): Date[] {
   const year = monthCursor.getFullYear();
   const month = monthCursor.getMonth();
-
   const firstDay = new Date(year, month, 1);
   const startOffset = (firstDay.getDay() + 6) % 7;
   const gridStart = new Date(year, month, 1 - startOffset);
-
   return Array.from({ length: 42 }, (_, index) => {
     const day = new Date(gridStart);
     day.setDate(gridStart.getDate() + index);
@@ -190,9 +147,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<UserEventDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
   const [searchKeyword, setSearchKeyword] = useState('');
-
   const [selectedDateOption, setSelectedDateOption] = useState<DateFilterOption>('ALL_DAYS');
   const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -203,11 +158,9 @@ export default function EventsPage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-
   const [selectedLocation, setSelectedLocation] = useState<LocationFilterOption>('ALL');
   const [isFreeOnly, setIsFreeOnly] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<CategoryOption[]>([]);
-
   const [draftLocation, setDraftLocation] = useState<LocationFilterOption>('ALL');
   const [draftFreeOnly, setDraftFreeOnly] = useState(false);
   const [draftCategories, setDraftCategories] = useState<CategoryOption[]>([]);
@@ -220,19 +173,13 @@ export default function EventsPage() {
       setEvents(data);
       setError('');
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message || 'Không thể tải danh sách sự kiện');
-      } else {
-        setError('Không thể tải danh sách sự kiện');
-      }
+      setError(err instanceof Error ? err.message || 'Không thể tải danh sách sự kiện' : 'Không thể tải danh sách sự kiện');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
+  useEffect(() => { loadEvents(); }, []);
 
   const eventCards = useMemo(() => events.map(toEventViewModel), [events]);
 
@@ -245,20 +192,14 @@ export default function EventsPage() {
       const matchesLocation = selectedLocation === 'ALL' || item.locationCode === selectedLocation;
       const matchesFreeOnly = !isFreeOnly || item.minPrice === 0;
       const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(item.category);
-
       return matchesDate && matchesLocation && matchesFreeOnly && matchesCategory;
     }),
     [eventCards, isFreeOnly, selectedCategories, selectedCustomDate, selectedDateOption, selectedLocation],
   );
 
-  const activeCategoryTag =
-    selectedCategories.length === 1
-      ? CATEGORY_LABELS[selectedCategories[0]]
-      : 'Tất cả';
+  const activeCategoryTag = selectedCategories.length === 1 ? CATEGORY_LABELS[selectedCategories[0]] : 'Tất cả';
 
-  const handleSearchSubmit = async () => {
-    await loadEvents(searchKeyword);
-  };
+  const handleSearchSubmit = async () => { await loadEvents(searchKeyword); };
 
   const handleOpenFilter = () => {
     setDraftLocation(selectedLocation);
@@ -281,10 +222,7 @@ export default function EventsPage() {
     setIsDateMenuOpen(false);
   };
 
-  const handleResetDateFilter = () => {
-    setDraftDateOption('ALL_DAYS');
-    setDraftCustomDate(null);
-  };
+  const handleResetDateFilter = () => { setDraftDateOption('ALL_DAYS'); setDraftCustomDate(null); };
 
   const handleApplyFilter = () => {
     setSelectedLocation(draftLocation);
@@ -293,11 +231,7 @@ export default function EventsPage() {
     setIsFilterOpen(false);
   };
 
-  const handleResetFilter = () => {
-    setDraftLocation('ALL');
-    setDraftFreeOnly(false);
-    setDraftCategories([]);
-  };
+  const handleResetFilter = () => { setDraftLocation('ALL'); setDraftFreeOnly(false); setDraftCategories([]); };
 
   const handleResetAll = async () => {
     setSearchKeyword('');
@@ -313,18 +247,11 @@ export default function EventsPage() {
     setDraftCategories([]);
     setIsDateMenuOpen(false);
     setIsFilterOpen(false);
-
     await loadEvents();
   };
 
   const toggleDraftCategory = (category: CategoryOption) => {
-    setDraftCategories(prev => {
-      if (prev.includes(category)) {
-        return prev.filter(item => item !== category);
-      }
-
-      return [...prev, category];
-    });
+    setDraftCategories(prev => prev.includes(category) ? prev.filter(item => item !== category) : [...prev, category]);
   };
 
   const handleSelectCalendarDate = (date: Date) => {
@@ -333,7 +260,6 @@ export default function EventsPage() {
   };
 
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonthCursor), [calendarMonthCursor]);
-
   const selectedDraftDate = parseIsoDate(draftCustomDate);
   const selectedDateLabel = selectedDateOption === 'CUSTOM_DATE' && selectedCustomDate
     ? (parseIsoDate(selectedCustomDate)?.toLocaleDateString('vi-VN') || DATE_LABELS.ALL_DAYS)
@@ -341,212 +267,170 @@ export default function EventsPage() {
 
   return (
     <div className="events-screen">
-      <GuestHeader
-        activeTab="events"
-        searchValue={searchKeyword}
-        onSearchValueChange={setSearchKeyword}
-        onSearchSubmit={handleSearchSubmit}
-      />
-
+      <div className="animated-bg" />
+      <GuestHeader activeTab="events" searchValue={searchKeyword} onSearchValueChange={setSearchKeyword} onSearchSubmit={handleSearchSubmit} />
       <main className="events-page">
-      <section className="events-content">
-        <div className="events-toolbar">
-          <h2 className="events-result-heading">Kết quả tìm kiếm:</h2>
-
-          <div className="events-toolbar-controls">
-            <div className="events-date-wrap">
-              <button
-                type="button"
-                className="events-chip events-chip-muted"
-                onClick={handleOpenDateFilter}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <section className="events-content">
+          <div className="events-toolbar">
+            <h2 className="events-result-heading">
+              <span className="heading-accent">Khám phá</span> sự kiện
+            </h2>
+            <div className="events-toolbar-controls">
+              <button type="button" className="events-chip events-chip-muted" onClick={handleOpenDateFilter}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <rect x="3" y="5" width="18" height="16" rx="2" />
                   <path d="M3 9h18" />
                   <path d="M8 3v4M16 3v4" strokeLinecap="round" />
                 </svg>
                 {selectedDateLabel}
               </button>
+              <button type="button" className="events-chip events-chip-cta" onClick={handleOpenFilter}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M3 5h18l-7 8v5l-4 2v-7z" strokeLinejoin="round" />
+                </svg>
+                Bộ lọc
+              </button>
+              <button type="button" className="events-chip events-chip-clear" onClick={() => void handleResetAll()}>
+                Tất cả
+              </button>
+              {activeCategoryTag !== 'Tất cả' ? (
+                <span className="events-chip events-chip-active">{activeCategoryTag}</span>
+              ) : null}
             </div>
-
-            <button type="button" className="events-chip events-chip-cta" onClick={handleOpenFilter}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M3 5h18l-7 8v5l-4 2v-7z" strokeLinejoin="round" />
-              </svg>
-              Bộ lọc
-            </button>
-
-            <button type="button" className="events-chip events-chip-clear" onClick={() => void handleResetAll()}>
-              Tất cả
-            </button>
-
-            {activeCategoryTag !== 'Tất cả' ? (
-              <span className="events-chip events-chip-active">{activeCategoryTag}</span>
-            ) : null}
           </div>
-        </div>
 
-        {isFilterOpen ? (
-          <div className="events-filter-overlay" role="presentation" onClick={() => setIsFilterOpen(false)}>
-            <section className="events-filter-panel" onClick={event => event.stopPropagation()}>
-              <h3>Vị trí</h3>
-              <div className="events-location-options">
-                {(Object.keys(LOCATION_LABELS) as LocationFilterOption[]).map(locationCode => (
-                  <label key={locationCode} className="events-radio-line">
-                    <input
-                      type="radio"
-                      name="location-filter"
-                      checked={draftLocation === locationCode}
-                      onChange={() => setDraftLocation(locationCode)}
-                    />
-                    {LOCATION_LABELS[locationCode]}
+          {isFilterOpen ? (
+            <div className="events-filter-overlay" role="presentation" onClick={() => setIsFilterOpen(false)}>
+              <section className="events-filter-panel" onClick={event => event.stopPropagation()}>
+                <h3>Vị trí</h3>
+                <div className="events-location-options">
+                  {(Object.keys(LOCATION_LABELS) as LocationFilterOption[]).map(locationCode => (
+                    <label key={locationCode} className="events-radio-line">
+                      <input type="radio" name="location-filter" checked={draftLocation === locationCode} onChange={() => setDraftLocation(locationCode)} />
+                      {LOCATION_LABELS[locationCode]}
+                    </label>
+                  ))}
+                </div>
+                <div className="events-filter-divider" />
+                <div className="events-filter-row">
+<div><h3>Giá tiền</h3><p>Miễn phí</p></div>
+                  <label className="events-switch" aria-label="Lọc sự kiện miễn phí">
+                    <input type="checkbox" checked={draftFreeOnly} onChange={event => setDraftFreeOnly(event.target.checked)} />
+                    <span />
                   </label>
-                ))}
-              </div>
-
-              <div className="events-filter-divider" />
-
-              <div className="events-filter-row">
-                <div>
-                  <h3>Giá tiền</h3>
-                  <p>Miễn phí</p>
                 </div>
-                <label className="events-switch" aria-label="Lọc sự kiện miễn phí">
-                  <input
-                    type="checkbox"
-                    checked={draftFreeOnly}
-                    onChange={event => setDraftFreeOnly(event.target.checked)}
-                  />
-                  <span />
-                </label>
-              </div>
-
-              <div className="events-filter-divider" />
-
-              <h3>Thể loại</h3>
-              <div className="events-category-chips">
-                {(Object.keys(CATEGORY_LABELS) as CategoryOption[]).map(category => (
-                  <button
-                    key={category}
-                    type="button"
-                    className={`events-category-chip ${draftCategories.includes(category) ? 'active' : ''}`}
-                    onClick={() => toggleDraftCategory(category)}
-                  >
-                    {CATEGORY_LABELS[category]}
-                  </button>
-                ))}
-              </div>
-
-              <div className="events-filter-actions">
-                <button type="button" className="events-filter-reset" onClick={handleResetFilter}>Thiết lập lại</button>
-                <button type="button" className="events-filter-apply" onClick={handleApplyFilter}>Áp dụng</button>
-              </div>
-            </section>
-          </div>
-        ) : null}
-
-        {isDateMenuOpen ? (
-          <div className="events-filter-overlay" role="presentation" onClick={() => setIsDateMenuOpen(false)}>
-            <section className="events-filter-panel events-date-panel" onClick={event => event.stopPropagation()}>
-              <h3>Tất cả các ngày</h3>
-              <div className="events-date-quick-options">
-                {(['ALL_DAYS', 'TODAY', 'TOMORROW', 'THIS_WEEKEND', 'THIS_MONTH'] as DateFilterOption[]).map(option => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`events-date-quick-chip ${draftDateOption === option ? 'active' : ''}`}
-                    onClick={() => setDraftDateOption(option)}
-                  >
-                    {DATE_LABELS[option]}
-                  </button>
-                ))}
-              </div>
-
-              <div className="events-calendar-head">
-                <button
-                  type="button"
-                  className="events-calendar-nav"
-                  aria-label="Tháng trước"
-                  onClick={() => setCalendarMonthCursor(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                >
-                  ‹
-                </button>
-                <h4>
-                  {calendarMonthCursor.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
-                </h4>
-                <button
-                  type="button"
-                  className="events-calendar-nav"
-                  aria-label="Tháng sau"
-                  onClick={() => setCalendarMonthCursor(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                >
-                  ›
-                </button>
-              </div>
-
-              <div className="events-calendar-weekdays">
-                {WEEKDAY_SHORT_LABELS.map(label => (
-                  <span key={label}>{label}</span>
-                ))}
-              </div>
-
-              <div className="events-calendar-grid">
-                {calendarDays.map(day => {
-                  const isCurrentMonth = day.getMonth() === calendarMonthCursor.getMonth();
-                  const isSelected = !!selectedDraftDate && isSameDay(day, selectedDraftDate);
-
-                  return (
-                    <button
-                      key={day.toISOString()}
-                      type="button"
-                      className={`events-calendar-day ${isCurrentMonth ? '' : 'outside'} ${isSelected ? 'selected' : ''}`.trim()}
-                      onClick={() => handleSelectCalendarDate(day)}
-                    >
-                      {day.getDate()}
+                <div className="events-filter-divider" />
+                <h3>Thể loại</h3>
+                <div className="events-category-chips">
+                  {(Object.keys(CATEGORY_LABELS) as CategoryOption[]).map(category => (
+                    <button key={category} type="button" className={`events-category-chip ${draftCategories.includes(category) ? 'active' : ''}`} onClick={() => toggleDraftCategory(category)}>
+                      {CATEGORY_LABELS[category]}
                     </button>
-                  );
-                })}
-              </div>
-
-              <div className="events-filter-actions">
-                <button type="button" className="events-filter-reset" onClick={handleResetDateFilter}>Thiết lập lại</button>
-                <button type="button" className="events-filter-apply" onClick={handleApplyDateFilter}>Áp dụng</button>
-              </div>
-            </section>
-          </div>
-        ) : null}
-
-        {error && <p className="events-feedback events-error">{error}</p>}
-        {loading && <p className="events-feedback">Đang tải danh sách sự kiện...</p>}
-
-        {!loading && filteredEvents.length === 0 ? (
-          <div className="events-empty-state">
-            <svg viewBox="0 0 64 64" className="events-empty-icon" fill="none" aria-hidden="true">
-              <path d="M12 20h40l-4 24H16z" stroke="currentColor" strokeWidth="2.4" />
-              <path d="M24 20v-4a8 8 0 0 1 16 0v4" stroke="currentColor" strokeWidth="2.4" />
-              <path d="m22 44 20-20" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            </svg>
-            <p>Không tìm thấy sự kiện phù hợp, hãy thử chọn ngày hoặc bộ lọc khác.</p>
-            <button type="button" className="events-filter-reset-empty" onClick={handleResetAll}>Xóa bộ lọc</button>
-          </div>
-        ) : null}
-
-        {!loading && filteredEvents.length > 0 ? (
-          <div className="events-grid">
-            {filteredEvents.map(item => (
-              <article key={item.event.id} className="event-card">
-                <img src={item.event.thumbnailUrl || item.event.heroImageUrl} alt={item.event.name} className="event-card-poster" />
-                <div className="event-card-body">
-                  <h3 className="event-card-title">{item.event.name}</h3>
-                  <p className="event-card-price">Từ {formatVnd(item.minPrice)}</p>
-                  <p className="event-card-date">{formatDate(item.event.eventStartDate || item.event.openSaleDate)}</p>
-                  <Link to={`/events/${item.event.id}`} className="event-card-cta">Xem thông tin</Link>
+                  ))}
                 </div>
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </section>
+                <div className="events-filter-actions">
+                  <button type="button" className="events-filter-reset" onClick={handleResetFilter}>Thiết lập lại</button>
+                  <button type="button" className="events-filter-apply" onClick={handleApplyFilter}>Áp dụng</button>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {isDateMenuOpen ? (
+            <div className="events-filter-overlay" role="presentation" onClick={() => setIsDateMenuOpen(false)}>
+              <section className="events-filter-panel events-date-panel" onClick={event => event.stopPropagation()}>
+                <h3>Tất cả các ngày</h3>
+                <div className="events-date-quick-options">
+                  {(['ALL_DAYS', 'TODAY', 'TOMORROW', 'THIS_WEEKEND', 'THIS_MONTH'] as DateFilterOption[]).map(option => (
+                    <button key={option} type="button" className={`events-date-quick-chip ${draftDateOption === option ? 'active' : ''}`} onClick={() => setDraftDateOption(option)}>
+                      {DATE_LABELS[option]}
+                    </button>
+                  ))}
+                </div>
+                <div className="events-calendar-head">
+                  <button type="button" className="events-calendar-nav" aria-label="Tháng trước" onClick={() => setCalendarMonthCursor(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>‹</button>
+                  <h4>{calendarMonthCursor.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}</h4>
+                  <button type="button" className="events-calendar-nav" aria-label="Tháng sau" onClick={() => setCalendarMonthCursor(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>›</button>
+                </div>
+                <div className="events-calendar-weekdays">{WEEKDAY_SHORT_LABELS.map(label => (<span key={label}>{label}</span>))}</div>
+                <div className="events-calendar-grid">
+                  {calendarDays.map(day => {
+                    const isCurrentMonth = day.getMonth() === calendarMonthCursor.getMonth();
+                    const isSelected = !!selectedDraftDate && isSameDay(day, selectedDraftDate);
+                    return (
+                      <button key={day.toISOString()} type="button" className={`events-calendar-day ${isCurrentMonth ? '' : 'outside'} ${isSelected ? 'selected' : ''}`.trim()} onClick={() => handleSelectCalendarDate(day)}>
+                        {day.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="events-filter-actions">
+                  <button type="button" className="events-filter-reset" onClick={handleResetDateFilter}>Thiết lập lại</button>
+                  <button type="button" className="events-filter-apply" onClick={handleApplyDateFilter}>Áp dụng</button>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {error && <p className="events-feedback events-error">{error}</p>}
+          
+          {loading && (
+            <div className="events-grid">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="event-card event-card-skeleton">
+                  <div className="skeleton poster-skeleton" />
+                  <div className="event-card-body">
+                    <div className="skeleton title-skeleton" />
+                    <div className="skeleton price-skeleton" />
+                    <div className="skeleton date-skeleton" />
+                    <div className="skeleton btn-skeleton" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && filteredEvents.length === 0 ? (
+            <div className="events-empty-state">
+              <svg viewBox="0 0 64 64" className="events-empty-icon" fill="none" aria-hidden="true">
+                <path d="M12 20h40l-4 24H16z" stroke="currentColor" strokeWidth="2.4" />
+                <path d="M24 20v-4a8 8 0 0 1 16 0v4" stroke="currentColor" strokeWidth="2.4" />
+                <path d="m22 44 20-20" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+              </svg>
+              <p>Không tìm thấy sự kiện phù hợp, hãy thử chọn ngày hoặc bộ lọc khác.</p>
+              <button type="button" className="events-filter-reset-empty" onClick={handleResetAll}>Xóa bộ lọc</button>
+            </div>
+          ) : null}
+
+          {!loading && filteredEvents.length > 0 ? (
+            <div className="events-grid">
+              {filteredEvents.map((item, index) => (
+                <article key={item.event.id} className="event-card card-3d" style={{ animationDelay: `${index * 0.05}s` }}>
+                  <div className="event-card-image-wrap">
+                    <img src={item.event.thumbnailUrl || item.event.heroImageUrl} alt={item.event.name} className="event-card-poster" loading="lazy" />
+                    <div className="event-card-overlay">
+                      <span className="overlay-tag">{CATEGORY_LABELS[item.category]}</span>
+                    </div>
+                  </div>
+                  <div className="event-card-body">
+                    <h3 className="event-card-title">{item.event.name}</h3>
+                    <div className="event-card-meta">
+                      <span className="meta-price">{formatVnd(item.minPrice)}</span>
+                      <span className="meta-divider">•</span>
+                      <span className="meta-date">{formatDate(item.event.eventStartDate || item.event.openSaleDate)}</span>
+                    </div>
+                    <Link to={`/events/${item.event.id}`} className="event-card-cta">
+                      Xem thông tin
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
       </main>
     </div>
   );

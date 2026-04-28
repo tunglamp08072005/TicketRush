@@ -77,6 +77,8 @@ public class SecurityConfig {
                     "/api/admin/payments/**",
                     "/api/admin/users",
                     "/api/admin/users/**",
+                    "/api/admin/notifications",
+                    "/api/admin/notifications/**",
                     "/ws-ticket",
                     "/ws-ticket/**",
                     "/ws-ticket-sockjs",

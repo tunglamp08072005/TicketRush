@@ -2,6 +2,7 @@ import { CalendarDays, CreditCard, LayoutDashboard, LogOut, Settings, Users } fr
 import { useMemo } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearAuthSession } from '../features/auth/utils/authStorage';
+import AdminNotificationBell from '../features/admin-events/components/AdminNotificationBell';
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
@@ -73,7 +74,7 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100">
+      <div className="relative flex flex-1 flex-col bg-slate-100">
         <div className="pointer-events-none absolute -top-24 left-10 h-72 w-72 rounded-full bg-orange-200/40 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-10 h-72 w-72 rounded-full bg-sky-200/35 blur-3xl" />
 
@@ -82,8 +83,13 @@ export default function AdminLayout() {
             <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Hôm nay</p>
             <p className="text-sm font-semibold text-slate-700">{todayText}</p>
           </div>
-          <div className="flex h-9 min-w-9 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-500 px-2 text-xs font-bold text-white shadow-lg">
-            AD
+          <div className="flex items-center gap-3">
+            <AdminNotificationBell 
+              onNavigateToPayments={() => navigate('/admin/payments')}
+            />
+            <div className="flex h-9 min-w-9 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-500 px-2 text-xs font-bold text-white shadow-lg">
+              AD
+            </div>
           </div>
         </header>
 
