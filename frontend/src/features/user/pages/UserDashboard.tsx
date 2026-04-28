@@ -4,18 +4,20 @@ import { clearAuthSession, getAuthSession } from '../../auth/utils/authStorage';
 import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../services/userProfileService';
 import { heartbeatVirtualQueue } from '../../events/services/virtualQueueService';
 import Sidebar from '../components/dashboard/Sidebar';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
+import DashboardHeader, { type AppNotification } from '../components/dashboard/DashboardHeader';
 import MyTicketsSection from '../components/dashboard/MyTicketsSection';
 import AccountProfilePanel from '../components/dashboard/AccountProfilePanel';
 import EventExplorerSection from '../components/dashboard/EventExplorerSection';
 import SupportHub from '../../support/components/SupportHub';
+import NotificationSettingsPanel from '../components/dashboard/NotificationSettingsPanel';
+import { getNotificationPreferences } from '../services/notificationPreferenceService';
 import {
   sidebarMenuItems,
   userMock,
   type TicketItem,
   type DashboardMenuKey,
 } from '../data/dashboardMockData';
-import { getPublicEventDetail } from '../../events/services/eventService';
+import { getPublicEventDetail, searchPublicEvents } from '../../events/services/eventService';
 import { fetchMyPayments, releaseHeldSeatsForPayment, type PaymentOrder } from '../../order-payment/services/paymentService';
 import {
   getPendingReservations,
@@ -32,6 +34,7 @@ import {
 const PROFILE_HEARTBEAT_INTERVAL_MS = 30000;
 
 const PAYMENT_STATUS_NOTICE_STORAGE_KEY = 'ticketrush.paymentNotice.dismissedOrderIds';
+const DISMISSED_NOTIFICATIONS_KEY = 'ticketrush.notifications.dismissedIds';
 
 function formatTicketDate(value: string | null): string {
   if (!value) {
@@ -158,6 +161,8 @@ export default function UserDashboard() {
   const [pendingReservations, setPendingReservations] = useState<PendingReservation[]>([]);
   const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
   const [unreadRejectedOrderIds, setUnreadRejectedOrderIds] = useState<number[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [systemNotificationEnabled, setSystemNotificationEnabled] = useState(true);
 
   const [username, setUsername] = useState(getAuthSession().username || 'User');
   const [email, setEmail] = useState('');
@@ -250,6 +255,58 @@ export default function UserDashboard() {
           .map(order => order.orderId);
         setUnreadRejectedOrderIds(nextUnreadRejectedOrderIds);
 
+        // Generate unified notifications
+        try {
+          const dismissedNotificationIds = new Set(JSON.parse(localStorage.getItem(DISMISSED_NOTIFICATIONS_KEY) || '[]'));
+          const newNotifications: AppNotification[] = [];
+
+          orders.forEach(o => {
+            if (o.paymentStatus === 'REJECTED') {
+              const id = `rej-${o.orderId}`;
+              newNotifications.push({
+                id,
+                title: 'Thanh toán bị từ chối',
+                message: `Đơn đặt vé sự kiện ${o.eventName} đã bị từ chối.`,
+                isRead: dismissedNotificationIds.has(id),
+                date: new Date(o.paymentReviewedAt || o.createdAt),
+                type: 'warning'
+              });
+            } else if (o.paymentStatus === 'APPROVED') {
+              const id = `app-${o.orderId}`;
+              newNotifications.push({
+                id,
+                title: 'Đặt vé thành công',
+                message: `Tuyệt vời! Vé sự kiện ${o.eventName} của bạn đã sẵn sàng.`,
+                isRead: dismissedNotificationIds.has(id),
+                date: new Date(o.paymentReviewedAt || o.createdAt),
+                type: 'success'
+              });
+            }
+          });
+
+          try {
+            const events = await searchPublicEvents();
+            events.forEach(e => {
+              const id = `evt-${e.id}`;
+              newNotifications.push({
+                id,
+                title: 'Sự kiện mới mở bán',
+                message: `Sự kiện ${e.name} đang mở bán vé. Đừng bỏ lỡ!`,
+                isRead: dismissedNotificationIds.has(id),
+                date: new Date(e.openSaleDate),
+                type: 'info'
+              });
+            });
+          } catch (e) {
+            // Ignore event load error for notifications
+          }
+
+          newNotifications.sort((a, b) => b.date.getTime() - a.date.getTime());
+          setNotifications(newNotifications);
+        } catch (e) {
+          // Ignore unified notification error
+        }
+
         const uniqueEventIds = [...new Set(orders.map(order => order.eventId))];
         const eventDetailPairs = await Promise.all(
           uniqueEventIds.map(async eventId => {
@@ -303,8 +360,18 @@ export default function UserDashboard() {
       }
     };
 
+    const fetchNotificationPrefs = async () => {
+      try {
+        const prefs = await getNotificationPreferences();
+        setSystemNotificationEnabled(prefs.systemNotificationEnabled);
+      } catch {
+        // Keep default true if API fails
+      }
+    };
+
     void loadMyPayments();
     fetchProfile();
+    void fetchNotificationPrefs();
 
     const pollingTimer = window.setInterval(() => {
       void loadMyPayments();
@@ -495,7 +562,7 @@ export default function UserDashboard() {
                 const minutesLeft = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 60000));
 
                 return (
-                  <article key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+                  <article key={item.id} className="card-3d rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
                     <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Đơn giữ chỗ: {item.id}</p>
                     <h3 className="mt-1 text-lg font-semibold text-white">{item.eventName}</h3>
                     <p className="mt-1 text-sm text-gray-300">{item.eventLocation}</p>
@@ -564,7 +631,7 @@ export default function UserDashboard() {
             ) : (
               <div className="grid gap-4">
                 {paymentHistoryOrders.map(order => (
-                  <article key={order.orderId} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+                  <article key={order.orderId} className="card-3d rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Đơn thanh toán #{order.orderId}</p>
@@ -618,11 +685,33 @@ export default function UserDashboard() {
       return <SupportHub mode="dashboard" />;
     }
 
+    if (activeMenu === 'notifications') {
+      return <NotificationSettingsPanel />;
+    }
+
     return null;
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-950 font-['Inter'] text-white">
+    <div className="relative flex min-h-screen overflow-hidden bg-gradient-to-br from-gray-950 via-[#0a0612] to-gray-950 font-['Inter'] text-white">
+      {/* Animated Background Effects */}
+      <div className="animated-bg" />
+      <div className="particles">
+        {[...Array(12)].map((_, i) => (
+          <div key={i} className="particle" style={{
+            left: `${5 + i * 8}%`,
+            animationDelay: `${i * 0.8}s`,
+            animationDuration: `${18 + i % 5}s`,
+            background: i % 3 === 0 ? 'rgba(124, 58, 237, 0.8)' : i % 3 === 1 ? 'rgba(236, 72, 153, 0.8)' : 'rgba(255, 107, 107, 0.8)',
+            width: `${3 + (i % 3)}px`,
+            height: `${3 + (i % 3)}px`
+          }} />
+        ))}
+      </div>
+      {/* Gradient orbs */}
+      <div className="pointer-events-none absolute -left-40 top-20 h-80 w-80 rounded-full bg-purple-600/20 blur-[100px]" />
+      <div className="pointer-events-none absolute -bottom-40 right-20 h-96 w-96 rounded-full bg-pink-600/15 blur-[120px]" />
+      <div className="pointer-events-none absolute left-1/3 top-1/2 h-64 w-64 rounded-full bg-cyan-500/10 blur-[80px]" />
       <Sidebar
         menuItems={sidebarMenuItems}
         activeMenu={activeMenu}
@@ -636,11 +725,12 @@ export default function UserDashboard() {
         onLogout={handleLogout}
       />
 
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="relative flex-1 overflow-y-auto p-6 lg:p-8">
         <DashboardHeader
           displayName={fullName.trim() || username || userMock.displayName}
           avatarUrl={avatarUrl}
-          notificationCount={unreadRejectedOrderIds.length}
+          notificationCount={systemNotificationEnabled ? notifications.filter(n => !n.isRead).length : 0}
+          notifications={systemNotificationEnabled ? notifications : []}
           searchValue={eventsSearchKeyword}
           searchVariant={activeMenu === 'events' ? 'events' : 'default'}
           onSearchValueChange={setEventsSearchKeyword}
@@ -659,10 +749,32 @@ export default function UserDashboard() {
             setError('');
             setSuccess('');
           }}
+          onOpenNotifications={() => {
+            setActiveMenu('notifications');
+            setError('');
+            setSuccess('');
+          }}
+          onNotificationClick={(notification) => {
+             if (!notification.isRead) {
+               try {
+                 const dismissedNotificationIds = JSON.parse(localStorage.getItem(DISMISSED_NOTIFICATIONS_KEY) || '[]');
+                 if (!dismissedNotificationIds.includes(notification.id)) {
+                   dismissedNotificationIds.push(notification.id);
+                   localStorage.setItem(DISMISSED_NOTIFICATIONS_KEY, JSON.stringify(dismissedNotificationIds));
+                 }
+                 setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n));
+               } catch (e) {}
+             }
+             if (notification.id.startsWith('app-') || notification.id.startsWith('rej-')) {
+                setActiveMenu('payments');
+             } else if (notification.id.startsWith('evt-')) {
+                setActiveMenu('events');
+             }
+          }}
           onLogout={handleLogout}
         />
 
-        {activeMenu !== 'account' && activeMenu !== 'events' && activeMenu !== 'tickets' && activeMenu !== 'payments' && activeMenu !== 'support' && (
+        {activeMenu !== 'account' && activeMenu !== 'events' && activeMenu !== 'tickets' && activeMenu !== 'payments' && activeMenu !== 'support' && activeMenu !== 'notifications' && (
           <section className="mb-6 rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 p-8 text-center">
             <p className="text-lg font-semibold text-white">{sidebarMenuItems.find(item => item.key === activeMenu)?.label}</p>
             <p className="mt-2 text-sm text-gray-400">Tính năng đang được cập nhật. Bạn có thể chuyển sang Sự kiện hoặc Tài khoản.</p>
@@ -680,7 +792,7 @@ export default function UserDashboard() {
           </section>
         )}
 
-        {(activeMenu === 'account' || activeMenu === 'events' || activeMenu === 'tickets' || activeMenu === 'payments' || activeMenu === 'support') &&
+        {(activeMenu === 'account' || activeMenu === 'events' || activeMenu === 'tickets' || activeMenu === 'payments' || activeMenu === 'support' || activeMenu === 'notifications') &&
           renderMainContent()}
       </main>
     </div>

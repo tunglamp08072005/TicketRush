@@ -205,7 +205,7 @@ export default function AdminEventDashboard() {
         <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
           <Plus className="h-4 w-4" />
           Thêm sự kiện mới
@@ -312,7 +312,7 @@ export default function AdminEventDashboard() {
                       <button
                         type="button"
                         onClick={() => setIsAddModalOpen(true)}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                       >
                         <Plus className="h-4 w-4" />
                         Tạo sự kiện ngay

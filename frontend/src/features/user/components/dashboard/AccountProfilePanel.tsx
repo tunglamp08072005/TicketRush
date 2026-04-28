@@ -46,15 +46,18 @@ export default function AccountProfilePanel({
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6 text-gray-200">
-        Đang tải thông tin tài khoản...
+      <section className="card-3d rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+        <div className="flex animate-pulse flex-col items-center gap-4">
+          <div className="h-24 w-24 rounded-full bg-white/10" />
+          <div className="h-4 w-32 rounded bg-white/10" />
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
-      <h2 className="mb-1 text-2xl font-bold text-white">Tài khoản</h2>
+    <section className="card-3d rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+      <h2 className="mb-1 text-2xl font-bold gradient-text">Tài khoản</h2>
       <p className="mb-5 text-sm text-gray-400">Cập nhật hồ sơ, avatar và số điện thoại của bạn.</p>
 
       {queueSlotSecondsLeft != null ? (
@@ -65,7 +68,7 @@ export default function AccountProfilePanel({
             <button
               type="button"
               onClick={onReturnToBooking}
-              className="mt-3 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110"
+              className="btn-primary mt-3 text-xs"
             >
               Quay lại chọn ghế
             </button>
@@ -82,11 +85,11 @@ export default function AccountProfilePanel({
             <img
               src={avatarPreview}
               alt="Avatar"
-              className="h-24 w-24 rounded-full object-cover ring-2 ring-orange-500/40"
+              className="h-24 w-24 rounded-full object-cover ring-2 ring-purple-500/50 glow-pulse"
               onError={() => setAvatarLoadFailed(true)}
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-gray-600 bg-gray-950 text-center text-[11px] text-gray-400">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-purple-500/30 bg-white/5 text-center text-[11px] text-gray-400">
               Chưa có avatar
             </div>
           )}
@@ -100,12 +103,12 @@ export default function AccountProfilePanel({
               accept="image/*"
               onChange={e => onAvatarFileChange(e.target.files?.[0] ?? null)}
               disabled={saving || avatarUploading}
-              className="block w-full cursor-pointer rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
+              className="block w-full cursor-pointer rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-200 backdrop-blur-sm file:mr-3 file:rounded-lg file:border-0 file:bg-gradient-to-r file:from-purple-500 file:to-pink-500 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
             />
             <p className="mt-2 text-xs text-gray-400">
               {selectedAvatarFileName ? `Đã chọn: ${selectedAvatarFileName}` : 'Chọn ảnh từ máy tính để cập nhật avatar.'}
             </p>
-            {avatarUploading && <p className="mt-1 text-xs text-orange-300">Đang tải ảnh đại diện...</p>}
+            {avatarUploading && <p className="mt-1 text-xs text-purple-300">Đang tải ảnh đại diện...</p>}
           </div>
         </div>
 
@@ -118,7 +121,7 @@ export default function AccountProfilePanel({
             value={profile}
             onChange={e => onProfileChange(e.target.value)}
             disabled={saving}
-            className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 backdrop-blur-sm focus:border-purple-500/60"
             placeholder="Ví dụ: Nguyễn Văn A"
           />
         </div>
@@ -131,7 +134,7 @@ export default function AccountProfilePanel({
             id="email"
             value={email}
             disabled
-            className="w-full rounded-xl border border-gray-800 bg-gray-800 px-3 py-2 text-sm text-gray-300"
+            className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-gray-300 backdrop-blur-sm"
           />
         </div>
 
@@ -144,15 +147,15 @@ export default function AccountProfilePanel({
             value={phoneNumber}
             onChange={e => onPhoneNumberChange(e.target.value)}
             disabled={saving}
-            className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500/60"
-            placeholder="Vi du: 0912345678"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 backdrop-blur-sm focus:border-purple-500/60"
+            placeholder="Ví dụ: 0912345678"
           />
         </div>
 
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-xl bg-gradient-to-r from-red-500 to-orange-500 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70"
+          className="btn-primary w-full"
         >
           {saving ? 'Đang lưu...' : 'Cập nhật tài khoản'}
         </button>

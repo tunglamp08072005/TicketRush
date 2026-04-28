@@ -71,6 +71,13 @@ public class UserProfileController {
         user.setProfileText(trimToNull(request.getProfile()));
         user.setPhoneNumber(normalizedPhone.isEmpty() ? null : normalizedPhone);
 
+        if (request.getEmailNotificationEnabled() != null) {
+            user.setEmailNotificationEnabled(request.getEmailNotificationEnabled());
+        }
+        if (request.getSystemNotificationEnabled() != null) {
+            user.setSystemNotificationEnabled(request.getSystemNotificationEnabled());
+        }
+
         User saved = userService.saveExistingUser(user);
         return ResponseEntity.ok(toProfileResponse(saved));
     }
@@ -178,7 +185,9 @@ public class UserProfileController {
                 user.getRole(),
                 user.getProfileText(),
                 user.getAvatarUrl(),
-                user.getPhoneNumber()
+                user.getPhoneNumber(),
+                user.isEmailNotificationEnabled(),
+                user.isSystemNotificationEnabled()
         );
     }
 }

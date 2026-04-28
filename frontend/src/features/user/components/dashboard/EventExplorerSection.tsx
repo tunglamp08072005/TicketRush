@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Calendar, Filter, Frown } from 'lucide-react';
 import { searchPublicEvents, type UserEventDetail } from '../../../events/services/eventService';
 import '../../../events/pages/EventsPage.css';
 
@@ -344,39 +345,33 @@ export default function EventExplorerSection({
     : DATE_LABELS[selectedDateOption];
 
   return (
-    <section className="events-content">
-      <div className="events-toolbar">
-        <h2 className="events-result-heading">Danh sách sự kiện</h2>
+    <section className="w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <h2 className="text-[28px] font-extrabold tracking-tight text-white sm:text-3xl">Danh sách sự kiện</h2>
 
-        <div className="events-toolbar-controls">
-          <div className="events-date-wrap">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
             <button
               type="button"
-              className="events-chip events-chip-muted"
+              className="flex items-center gap-2 rounded-2xl border border-white/5 bg-white/5 px-4 py-2.5 text-[14px] font-semibold text-gray-300 backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/10 hover:text-white"
               onClick={handleOpenDateFilter}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <rect x="3" y="5" width="18" height="16" rx="2" />
-                <path d="M3 9h18" />
-                <path d="M8 3v4M16 3v4" strokeLinecap="round" />
-              </svg>
+              <Calendar className="h-[18px] w-[18px]" />
               {selectedDateLabel}
             </button>
           </div>
 
-          <button type="button" className="events-chip events-chip-cta" onClick={handleOpenFilter}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M3 5h18l-7 8v5l-4 2v-7z" strokeLinejoin="round" />
-            </svg>
+          <button type="button" className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500/20 to-red-500/10 border border-orange-500/30 px-4 py-2.5 text-[14px] font-semibold text-orange-400 transition-all hover:border-orange-500/50 hover:bg-orange-500/20" onClick={handleOpenFilter}>
+            <Filter className="h-[18px] w-[18px]" />
             Bộ lọc
           </button>
 
-          <button type="button" className="events-chip events-chip-clear" onClick={() => void handleResetAll()}>
+          <button type="button" className="rounded-2xl border border-transparent px-4 py-2.5 text-[14px] font-semibold text-gray-400 transition-all hover:text-white" onClick={() => void handleResetAll()}>
             Tất cả
           </button>
 
           {activeCategoryTag !== 'Tất cả' ? (
-            <span className="events-chip events-chip-active">{activeCategoryTag}</span>
+            <span className="rounded-2xl bg-orange-500/20 border border-orange-500/30 px-4 py-2.5 text-[14px] font-semibold text-orange-300">{activeCategoryTag}</span>
           ) : null}
         </div>
       </div>
@@ -511,30 +506,40 @@ export default function EventExplorerSection({
         </div>
       ) : null}
 
-      {error && <p className="events-feedback events-error">{error}</p>}
-      {loading && <p className="events-feedback">Đang tải danh sách sự kiện...</p>}
+      {error && <p className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm font-medium text-red-200">{error}</p>}
+      {loading && (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/5 p-12 text-center backdrop-blur-xl">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/10 border-t-orange-500" />
+          <p className="mt-4 text-[15px] font-medium text-gray-300">Đang tải danh sách sự kiện...</p>
+        </div>
+      )}
 
       {!loading && filteredEvents.length === 0 ? (
-        <div className="events-empty-state">
-          <svg viewBox="0 0 64 64" className="events-empty-icon" fill="none" aria-hidden="true">
-            <path d="M12 20h40l-4 24H16z" stroke="currentColor" strokeWidth="2.4" />
-            <path d="M24 20v-4a8 8 0 0 1 16 0v4" stroke="currentColor" strokeWidth="2.4" />
-            <path d="m22 44 20-20" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-          </svg>
-          <p>Không tìm thấy sự kiện phù hợp, hãy thử chọn ngày hoặc bộ lọc khác.</p>
-          <button type="button" className="events-filter-reset-empty" onClick={handleResetAll}>Xóa bộ lọc</button>
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 py-16 text-center backdrop-blur-xl">
+          <Frown className="h-16 w-16 text-gray-500 mb-4 opacity-50" />
+          <p className="text-[15px] font-medium text-gray-300">Không tìm thấy sự kiện phù hợp, hãy thử chọn ngày hoặc bộ lọc khác.</p>
+          <button type="button" className="mt-6 rounded-xl border border-white/10 bg-white/5 px-6 py-2.5 text-[14px] font-semibold text-gray-300 transition-all hover:bg-white/10 hover:text-white" onClick={handleResetAll}>Xóa bộ lọc</button>
         </div>
       ) : null}
 
       {!loading && filteredEvents.length > 0 ? (
-        <div className="events-grid">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredEvents.map(item => (
-            <article key={item.event.id} className="event-card">
-              <img src={item.event.thumbnailUrl || item.event.heroImageUrl} alt={item.event.name} className="event-card-poster" />
-              <div className="event-card-body">
-                <h3 className="event-card-title">{item.event.name}</h3>
-                <p className="event-card-date">{formatDate(item.event.eventStartDate || item.event.openSaleDate)}</p>
-                <Link to={`/user/events/${item.event.id}`} className="event-card-cta">Xem thông tin</Link>
+            <article key={item.event.id} className="card-3d group relative flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-[#0a0a0c]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+              {/* Gradient accent on hover */}
+              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-purple-500 via-pink-500 to-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <div className="relative h-52 w-full overflow-hidden">
+                <img src={item.event.thumbnailUrl || item.event.heroImageUrl} alt={item.event.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-transparent to-transparent opacity-90" />
+              </div>
+              <div className="relative flex flex-1 flex-col px-5 pb-5 pt-2">
+                <h3 className="text-[17px] font-bold text-white leading-tight transition-colors group-hover:text-orange-400 line-clamp-2">{item.event.name}</h3>
+                <p className="mt-2 text-[13px] font-medium text-gray-400">{formatDate(item.event.eventStartDate || item.event.openSaleDate)}</p>
+                <div className="mt-6 pt-1">
+                  <Link to={`/user/events/${item.event.id}`} className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-red-500 py-3 text-[14px] font-bold text-white shadow-[0_0_15px_rgba(249,115,22,0.4)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(249,115,22,0.6)]">
+                    Xem thông tin
+                  </Link>
+                </div>
               </div>
             </article>
           ))}

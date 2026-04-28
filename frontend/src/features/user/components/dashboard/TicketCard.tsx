@@ -150,7 +150,11 @@ export default function TicketCard({ ticket }: TicketCardProps) {
 
   return (
     <div>
-      <article ref={cardRef} className="rounded-2xl border border-gray-800 bg-gray-900 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)]">
+      <article ref={cardRef} className="card-3d relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-gray-900/95 to-gray-950/95 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        {/* Gradient accent bar */}
+        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-purple-500 via-pink-500 to-orange-500" />
+        {/* Subtle glow overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Ticket ID: {ticket.id}</p>
