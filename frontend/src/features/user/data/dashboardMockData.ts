@@ -1,4 +1,4 @@
-export type DashboardMenuKey = 'events' | 'tickets' | 'payments' | 'account' | 'support';
+export type DashboardMenuKey = 'events' | 'tickets' | 'payments' | 'notifications' | 'account' | 'support';
 
 export interface SidebarMenuItem {
   key: DashboardMenuKey;
@@ -34,6 +34,7 @@ export const sidebarMenuItems: SidebarMenuItem[] = [
   { key: 'events', label: 'Sự kiện' },
   { key: 'tickets', label: 'Vé của tôi' },
   { key: 'payments', label: 'Thanh toán' },
+  { key: 'notifications', label: 'Thông báo' },
   { key: 'account', label: 'Tài khoản' },
   { key: 'support', label: 'Hỗ trợ' },
 ];

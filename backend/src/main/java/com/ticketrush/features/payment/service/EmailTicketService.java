@@ -46,6 +46,11 @@ public class EmailTicketService {
             User user = order.getUser();
             Event event = order.getEvent();
 
+            if (!user.isEmailNotificationEnabled()) {
+                log.info("Skipping ticket email for user {} - email notifications disabled", user.getId());
+                return;
+            }
+
             if (user.getEmail() == null || user.getEmail().isBlank()) {
                 log.warn("Cannot send ticket email - user {} has no email", user.getId());
                 return;

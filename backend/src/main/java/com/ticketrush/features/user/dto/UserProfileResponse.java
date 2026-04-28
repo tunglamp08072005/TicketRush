@@ -7,17 +7,21 @@ public class UserProfileResponse {
     private String profile;
     private String avatarUrl;
     private String phoneNumber;
+    private boolean emailNotificationEnabled;
+    private boolean systemNotificationEnabled;
 
     public UserProfileResponse() {
     }
 
-    public UserProfileResponse(String username, String email, String role, String profile, String avatarUrl, String phoneNumber) {
+    public UserProfileResponse(String username, String email, String role, String profile, String avatarUrl, String phoneNumber, boolean emailNotificationEnabled, boolean systemNotificationEnabled) {
         this.username = username;
         this.email = email;
         this.role = role;
         this.profile = profile;
         this.avatarUrl = avatarUrl;
         this.phoneNumber = phoneNumber;
+        this.emailNotificationEnabled = emailNotificationEnabled;
+        this.systemNotificationEnabled = systemNotificationEnabled;
     }
 
     public String getUsername() {
@@ -66,5 +70,21 @@ public class UserProfileResponse {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public boolean isEmailNotificationEnabled() {
+        return emailNotificationEnabled;
+    }
+
+    public void setEmailNotificationEnabled(boolean emailNotificationEnabled) {
+        this.emailNotificationEnabled = emailNotificationEnabled;
+    }
+
+    public boolean isSystemNotificationEnabled() {
+        return systemNotificationEnabled;
+    }
+
+    public void setSystemNotificationEnabled(boolean systemNotificationEnabled) {
+        this.systemNotificationEnabled = systemNotificationEnabled;
     }
 }

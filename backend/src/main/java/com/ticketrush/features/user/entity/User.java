@@ -35,6 +35,12 @@ public class User {
     @Column(name = "phone_number", length = 32)
     private String phoneNumber;
 
+    @Column(name = "email_notification_enabled", nullable = false)
+    private boolean emailNotificationEnabled = true;
+
+    @Column(name = "system_notification_enabled", nullable = false)
+    private boolean systemNotificationEnabled = true;
+
     // Getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -52,4 +58,8 @@ public class User {
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public boolean isEmailNotificationEnabled() { return emailNotificationEnabled; }
+    public void setEmailNotificationEnabled(boolean emailNotificationEnabled) { this.emailNotificationEnabled = emailNotificationEnabled; }
+    public boolean isSystemNotificationEnabled() { return systemNotificationEnabled; }
+    public void setSystemNotificationEnabled(boolean systemNotificationEnabled) { this.systemNotificationEnabled = systemNotificationEnabled; }
 }

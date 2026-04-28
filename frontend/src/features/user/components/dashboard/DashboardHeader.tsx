@@ -1,15 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  date: Date;
+  type: 'success' | 'warning' | 'info' | 'error';
+}
+
 interface DashboardHeaderProps {
   displayName: string;
   avatarUrl?: string;
   notificationCount?: number;
+  notifications?: AppNotification[];
   searchValue?: string;
   searchVariant?: 'default' | 'events';
   onSearchValueChange?: (value: string) => void;
   onSearchSubmit?: () => void;
   onOpenProfile: () => void;
   onOpenOrders: () => void;
+  onOpenNotifications?: () => void;
+  onNotificationClick?: (notification: AppNotification) => void;
   onLogout: () => void;
 }
 
@@ -43,21 +55,29 @@ export default function DashboardHeader({
   displayName,
   avatarUrl,
   notificationCount = 0,
+  notifications = [],
   searchValue = '',
   searchVariant = 'default',
   onSearchValueChange,
   onSearchSubmit,
   onOpenProfile,
   onOpenOrders,
+  onOpenNotifications,
+  onNotificationClick,
   onLogout,
 }: DashboardHeaderProps) {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isNotificationsMenuOpen, setIsNotificationsMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setIsProfileMenuOpen(false);
+      }
+      if (notificationsMenuRef.current && !notificationsMenuRef.current.contains(event.target as Node)) {
+        setIsNotificationsMenuOpen(false);
       }
     };
 
@@ -93,17 +113,55 @@ export default function DashboardHeader({
       </form>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-800 bg-gray-900 text-gray-200 transition hover:border-gray-700 hover:text-white"
-        >
-          <BellIcon />
-          {notificationCount > 0 && (
-            <span className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-              {notificationCount}
-            </span>
+        <div ref={notificationsMenuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setIsNotificationsMenuOpen(prev => !prev)}
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-800 bg-gray-900 text-gray-200 transition hover:border-gray-700 hover:text-white"
+          >
+            <BellIcon />
+            {notificationCount > 0 && (
+              <span className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {notificationCount}
+              </span>
+            )}
+          </button>
+
+          {isNotificationsMenuOpen && (
+            <div className="absolute right-0 z-40 mt-2 w-80 rounded-xl border border-gray-800 bg-gray-900 p-1.5 shadow-xl max-h-96 flex flex-col">
+              <div className="px-3 py-2 text-sm font-semibold border-b border-gray-800 text-white flex justify-between items-center shrink-0">
+                <span>Thông báo hệ thống</span>
+                <button onClick={() => { setIsNotificationsMenuOpen(false); onOpenNotifications?.(); }} className="text-xs text-orange-500 hover:underline">Cài đặt</button>
+              </div>
+              <div className="overflow-y-auto flex-1">
+                {(!notifications || notifications.length === 0) ? (
+                  <div className="p-4 text-center text-sm text-gray-500">Không có thông báo nào</div>
+                ) : (
+                  <div className="flex flex-col gap-1 mt-1">
+                    {notifications.map(notification => (
+                      <button
+                        key={notification.id}
+                        onClick={() => {
+                          onNotificationClick?.(notification);
+                          if (!notification.isRead) {
+                            // Close menu or leave open based on preference, closing is fine
+                          }
+                        }}
+                        className={`w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-gray-800 ${!notification.isRead ? 'bg-gray-800/50' : ''}`}
+                      >
+                        <p className={`font-semibold ${notification.type === 'success' ? 'text-emerald-400' : notification.type === 'warning' ? 'text-orange-400' : notification.type === 'error' ? 'text-red-400' : 'text-blue-400'}`}>
+                          {notification.title}
+                        </p>
+                        <p className="text-gray-300 text-xs mt-1 leading-relaxed">{notification.message}</p>
+                        <p className="text-gray-500 text-[10px] mt-1 text-right">{notification.date.toLocaleString('vi-VN')}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
         <div ref={profileMenuRef} className="relative">
           <button
