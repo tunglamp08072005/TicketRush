@@ -1,5 +1,6 @@
 package com.ticketrush.features.payment.service;
 
+import com.ticketrush.features.admin.notification.service.AdminNotificationHelper;
 import com.ticketrush.features.event.entity.Event;
 import com.ticketrush.features.event.entity.EventZone;
 import com.ticketrush.features.event.entity.Seat;
@@ -56,6 +57,7 @@ public class PaymentService {
     private final EmailTicketService emailTicketService;
     private final PricingStrategyService pricingStrategyService;
     private final VnPayService vnPayService;
+    private final AdminNotificationHelper notificationHelper;
 
     public PaymentService(EventRepository eventRepository,
                           SeatRepository seatRepository,
@@ -64,7 +66,8 @@ public class PaymentService {
                           SimpMessagingTemplate messagingTemplate,
                           EmailTicketService emailTicketService,
                           PricingStrategyService pricingStrategyService,
-                          VnPayService vnPayService) {
+                          VnPayService vnPayService,
+                          AdminNotificationHelper notificationHelper) {
         this.eventRepository = eventRepository;
         this.seatRepository = seatRepository;
         this.ticketOrderRepository = ticketOrderRepository;
@@ -73,6 +76,7 @@ public class PaymentService {
         this.emailTicketService = emailTicketService;
         this.pricingStrategyService = pricingStrategyService;
         this.vnPayService = vnPayService;
+        this.notificationHelper = notificationHelper;
     }
 
     @Transactional
@@ -101,6 +105,11 @@ public class PaymentService {
         publishSeatStatusAfterCommit(context.event().getId(), context.seats());
 
         TicketOrder saved = ticketOrderRepository.save(order);
+        
+        // Send notification to admin
+        String userName = user.getUsername() != null ? user.getUsername() : user.getEmail();
+        notificationHelper.notifyPendingPaymentSubmitted(saved.getId(), userName);
+        
         return toDto(saved);
     }
 
