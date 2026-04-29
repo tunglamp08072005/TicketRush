@@ -60,14 +60,41 @@
   font-size: 0.95rem;
 }
 
-.event-payment-bank-box {
+.event-payment-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.58);
+  padding: 0.35rem;
+}
+
+.event-payment-methods button {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.65rem 0.75rem;
+}
+
+.event-payment-methods button.active {
+  background: linear-gradient(135deg, #ff3b30 0%, #ff7b37 100%);
+  color: #fff;
+}
+
+.event-payment-bank-box,
+.event-payment-vnpay-box {
   border: 1px dashed rgba(250, 204, 21, 0.45);
   border-radius: 12px;
   background: rgba(120, 53, 15, 0.22);
   padding: 0.7rem;
 }
 
-.event-payment-bank-box p {
+.event-payment-bank-box p,
+.event-payment-vnpay-box p {
   margin: 0.25rem 0;
   color: #fde68a;
 }
@@ -141,4 +168,10 @@
 .event-payment-success p {
   margin: 0;
   color: #e2e8f0;
+}
+
+.event-payment-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }

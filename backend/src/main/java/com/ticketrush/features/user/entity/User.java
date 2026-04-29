@@ -35,10 +35,10 @@ public class User {
     @Column(name = "phone_number", length = 32)
     private String phoneNumber;
 
-    @Column(name = "email_notification_enabled", nullable = false)
+    @Column(name = "email_notification_enabled", nullable = false, columnDefinition = "boolean default true")
     private boolean emailNotificationEnabled = true;
 
-    @Column(name = "system_notification_enabled", nullable = false)
+    @Column(name = "system_notification_enabled", nullable = false, columnDefinition = "boolean default true")
     private boolean systemNotificationEnabled = true;
 
     // Getters and setters
