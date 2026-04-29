@@ -33,6 +33,14 @@ export interface SeatReleaseResponse {
   releasedSeatCodes: string[];
 }
 
+export interface VnPayCheckoutResponse {
+  orderId: number;
+  queueId: string;
+  totalAmount: number;
+  expiresAt: string;
+  paymentUrl: string;
+}
+
 interface CheckoutPayload {
   eventId: number;
   seatIds: number[];
@@ -78,6 +86,37 @@ export async function checkoutPayment(payload: CheckoutPayload): Promise<Payment
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || 'Không thể tạo đơn thanh toán');
+  }
+
+  return await response.json();
+}
+
+export async function createVnPayPayment(eventId: number, seatIds: number[], queueToken?: string): Promise<VnPayCheckoutResponse> {
+  const { token } = getAuthSession();
+  if (!token) {
+    throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
+  }
+
+  if (!Array.isArray(seatIds) || seatIds.length === 0) {
+    throw new Error('Bạn chưa chọn ghế để thanh toán.');
+  }
+
+  const formData = new FormData();
+  formData.append('eventId', String(eventId));
+  formData.append('seatIds', seatIds.join(','));
+
+  const response = await fetch('http://localhost:8080/api/user/payments/vnpay', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(queueToken ? { 'X-Queue-Token': queueToken } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Không thể tạo thanh toán VNPAY');
   }
 
   return await response.json();

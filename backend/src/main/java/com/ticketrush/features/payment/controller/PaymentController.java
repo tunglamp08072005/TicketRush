@@ -116,7 +116,8 @@ public class PaymentController {
                 .queryParam("orderId", result.orderId())
                 .queryParam("queueId", result.queueId())
                 .queryParam("message", result.message())
-                .build(true)
+                .build()
+                .encode()
                 .toUri();
         return ResponseEntity.status(HttpStatus.FOUND).location(redirectUri).build();
     }
