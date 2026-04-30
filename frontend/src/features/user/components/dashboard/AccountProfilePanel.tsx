@@ -11,10 +11,16 @@ interface AccountProfilePanelProps {
   avatarUrl: string;
   selectedAvatarFileName: string;
   phoneNumber: string;
+  gender: string;
+  birthday: string;
+  loginProvider?: string;
   queueSlotSecondsLeft?: number | null;
   onReturnToBooking?: () => void;
   onAvatarFileChange: (file: File | null) => void;
+  onEmailChange: (value: string) => void;
   onPhoneNumberChange: (value: string) => void;
+  onGenderChange: (value: string) => void;
+  onBirthdayChange: (value: string) => void;
   onProfileChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -30,14 +36,21 @@ export default function AccountProfilePanel({
   avatarUrl,
   selectedAvatarFileName,
   phoneNumber,
+  gender,
+  birthday,
+  loginProvider,
   queueSlotSecondsLeft = null,
   onReturnToBooking,
   onAvatarFileChange,
+  onEmailChange,
   onPhoneNumberChange,
+  onGenderChange,
+  onBirthdayChange,
   onProfileChange,
   onSubmit,
 }: AccountProfilePanelProps) {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const isGoogleLogin = loginProvider === 'GOOGLE';
   const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
 
   useEffect(() => {
@@ -128,13 +141,20 @@ export default function AccountProfilePanel({
 
         <div>
           <label htmlFor="email" className="mb-1 block text-sm text-gray-300">
-            Email
+            Email {isGoogleLogin && <span className="text-xs text-yellow-400">(đăng nhập bằng Google - không thể thay đổi)</span>}
           </label>
           <input
             id="email"
+            type="email"
             value={email}
-            disabled
-            className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-gray-300 backdrop-blur-sm"
+            onChange={e => onEmailChange(e.target.value)}
+            disabled={saving || isGoogleLogin}
+            className={`w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-gray-500 backdrop-blur-sm ${
+              isGoogleLogin
+                ? 'cursor-not-allowed border-white/5 text-gray-500'
+                : 'text-white focus:border-purple-500/60'
+            }`}
+            placeholder={isGoogleLogin ? '' : 'Ví dụ: email@example.com'}
           />
         </div>
 
@@ -151,6 +171,40 @@ export default function AccountProfilePanel({
             placeholder="Ví dụ: 0912345678"
           />
         </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label htmlFor="gender" className="mb-1 block text-sm text-gray-300">
+            Giới tính
+          </label>
+          <select
+            id="gender"
+            value={gender}
+            onChange={e => onGenderChange(e.target.value)}
+            disabled={saving}
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none backdrop-blur-sm focus:border-purple-500/60"
+          >
+            <option value="" className="bg-gray-900">Chưa cập nhật</option>
+            <option value="MALE" className="bg-gray-900">Nam</option>
+            <option value="FEMALE" className="bg-gray-900">Nữ</option>
+            <option value="OTHER" className="bg-gray-900">Khác</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="birthday" className="mb-1 block text-sm text-gray-300">
+            Ngày sinh
+          </label>
+          <input
+            id="birthday"
+            type="date"
+            value={birthday}
+            onChange={e => onBirthdayChange(e.target.value)}
+            disabled={saving}
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none backdrop-blur-sm focus:border-purple-500/60"
+          />
+        </div>
+      </div>
 
         <button
           type="submit"

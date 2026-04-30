@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -41,6 +43,18 @@ public class User {
     @Column(name = "system_notification_enabled", nullable = false, columnDefinition = "boolean default true")
     private boolean systemNotificationEnabled = true;
 
+    @Column(name = "gender", length = 20)
+    private String gender;
+
+    @Column(name = "birthday")
+    private LocalDate birthday;
+
+    @Column(name = "age")
+    private Integer age;
+
+    @Column(name = "login_provider", length = 20)
+    private String loginProvider; // "LOCAL" or "GOOGLE"
+
     // Getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -62,4 +76,12 @@ public class User {
     public void setEmailNotificationEnabled(boolean emailNotificationEnabled) { this.emailNotificationEnabled = emailNotificationEnabled; }
     public boolean isSystemNotificationEnabled() { return systemNotificationEnabled; }
     public void setSystemNotificationEnabled(boolean systemNotificationEnabled) { this.systemNotificationEnabled = systemNotificationEnabled; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public LocalDate getBirthday() { return birthday; }
+    public void setBirthday(LocalDate birthday) { this.birthday = birthday; }
+    public Integer getAge() { return age; }
+    public void setAge(Integer age) { this.age = age; }
+    public String getLoginProvider() { return loginProvider; }
+    public void setLoginProvider(String loginProvider) { this.loginProvider = loginProvider; }
 }

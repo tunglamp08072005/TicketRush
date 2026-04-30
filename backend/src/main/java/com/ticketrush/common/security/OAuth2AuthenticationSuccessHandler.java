@@ -91,6 +91,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private User resolveOrCreateGoogleUser(String normalizedEmail) {
         User user = userService.findByEmail(normalizedEmail);
         if (user != null) {
+            // Ensure legacy Google users have loginProvider set
+            if (user.getLoginProvider() == null || user.getLoginProvider().isBlank()) {
+                user.setLoginProvider("GOOGLE");
+                user = userService.saveExistingUser(user);
+            }
             return ensureGoogleUsernameUsesEmail(user, normalizedEmail);
         }
 
@@ -99,11 +104,20 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             if (user.getEmail() == null || user.getEmail().isBlank()) {
                 try {
                     user.setEmail(normalizedEmail);
+                    // Ensure legacy Google users have loginProvider set
+                    if (user.getLoginProvider() == null || user.getLoginProvider().isBlank()) {
+                        user.setLoginProvider("GOOGLE");
+                    }
                     return userService.saveExistingUser(user);
                 } catch (Exception ex) {
                     log.warn("Cannot backfill email for legacy Google user '{}'", user.getUsername(), ex);
                     return userService.findByEmail(normalizedEmail);
                 }
+            }
+            // Ensure legacy Google users have loginProvider set
+            if (user.getLoginProvider() == null || user.getLoginProvider().isBlank()) {
+                user.setLoginProvider("GOOGLE");
+                user = userService.saveExistingUser(user);
             }
             return user;
         }
@@ -114,6 +128,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             newUser.setEmail(normalizedEmail);
             newUser.setPassword(UUID.randomUUID().toString());
             newUser.setRole("USER");
+            newUser.setLoginProvider("GOOGLE");
             return userService.saveUser(newUser);
         } catch (Exception ex) {
             log.warn("Cannot create Google user for email '{}'", normalizedEmail, ex);

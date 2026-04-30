@@ -13,6 +13,7 @@ import UserDashboard from './features/user/pages/UserDashboard';
 import AdminEventDashboard from './features/admin-events/pages/AdminEventDashboard';
 import AdminOverviewPage from './features/admin-events/pages/AdminOverviewPage';
 import AdminSettingsPage from './features/admin-events/pages/AdminSettingsPage';
+import AdminDemographicsPage from './features/admin-events/pages/AdminDemographicsPage';
 import AdminUsersOverviewPage from './features/user/pages/AdminUsersOverviewPage';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
@@ -97,6 +98,7 @@ export default function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminOverviewPage />} />
           <Route path="events" element={<AdminEventDashboard />} />
+          <Route path="demographics" element={<AdminDemographicsPage />} />
           <Route path="payments" element={<AdminPaymentsReviewPage />} />
           <Route path="users" element={<AdminUsersOverviewPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />

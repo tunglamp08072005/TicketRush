@@ -9,12 +9,18 @@ export interface UserProfile {
   profile: string | null;
   avatarUrl: string | null;
   phoneNumber: string | null;
+  gender: string | null;
+  birthday: string | null;
+  loginProvider?: string;
 }
 
 export interface UpdateUserProfilePayload {
+  email?: string;
   profile: string;
   avatarUrl?: string;
   phoneNumber: string;
+  gender?: string;
+  birthday?: string;
 }
 
 function buildAuthHeaders(): HeadersInit {
