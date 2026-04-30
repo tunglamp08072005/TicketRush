@@ -70,6 +70,41 @@ public class UserProfileController {
 
         user.setProfileText(trimToNull(request.getProfile()));
         user.setPhoneNumber(normalizedPhone.isEmpty() ? null : normalizedPhone);
+        
+        // Handle gender
+        if (request.getGender() != null) {
+            String gender = request.getGender().trim();
+            if (gender.isEmpty()) {
+                user.setGender(null);
+            } else if (gender.equalsIgnoreCase("MALE") || gender.equalsIgnoreCase("FEMALE") || gender.equalsIgnoreCase("OTHER")) {
+                user.setGender(gender.toUpperCase());
+            } else {
+                user.setGender(gender);
+            }
+        }
+        
+        // Handle birthday
+        if (request.getBirthday() != null && !request.getBirthday().trim().isEmpty()) {
+            try {
+                user.setBirthday(java.time.LocalDate.parse(request.getBirthday().trim()));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        // Handle email update - only allow for LOCAL login, not GOOGLE
+        if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            if (!"GOOGLE".equals(user.getLoginProvider())) {
+                String newEmail = request.getEmail().trim().toLowerCase(Locale.ROOT);
+                // Check if new email already exists for another user
+                User existingUserWithEmail = userService.findByEmail(newEmail);
+                if (existingUserWithEmail != null && !existingUserWithEmail.getId().equals(user.getId())) {
+                    return ResponseEntity.badRequest().body("Email đã được sử dụng bởi tài khoản khác");
+                }
+                user.setEmail(newEmail);
+            }
+            // If GOOGLE login, ignore email update request
+        }
 
         if (request.getEmailNotificationEnabled() != null) {
             user.setEmailNotificationEnabled(request.getEmailNotificationEnabled());
@@ -179,15 +214,19 @@ public class UserProfileController {
     }
 
     private UserProfileResponse toProfileResponse(User user) {
-        return new UserProfileResponse(
+        UserProfileResponse response = new UserProfileResponse(
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole(),
                 user.getProfileText(),
                 user.getAvatarUrl(),
                 user.getPhoneNumber(),
+                user.getGender(),
+                user.getBirthday() != null ? user.getBirthday().toString() : null,
                 user.isEmailNotificationEnabled(),
                 user.isSystemNotificationEnabled()
         );
+        response.setLoginProvider(user.getLoginProvider());
+        return response;
     }
 }

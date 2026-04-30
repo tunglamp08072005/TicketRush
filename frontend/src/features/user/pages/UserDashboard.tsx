@@ -166,10 +166,14 @@ export default function UserDashboard() {
 
   const [username, setUsername] = useState(getAuthSession().username || 'User');
   const [email, setEmail] = useState('');
+  const [originalEmail, setOriginalEmail] = useState(''); // Track original email for comparison
   const [fullName, setFullName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [gender, setGender] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [loginProvider, setLoginProvider] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const state = (location.state as {
@@ -338,9 +342,13 @@ export default function UserDashboard() {
         const data = await getMyProfile();
         setUsername(data.username || 'User');
         setEmail(data.email || '');
+        setOriginalEmail(data.email || ''); // Store original email for comparison
         setFullName(data.profile || '');
         setAvatarUrl(data.avatarUrl || '');
         setPhoneNumber(data.phoneNumber || '');
+        setGender(data.gender || '');
+        setBirthday(data.birthday || '');
+        setLoginProvider(data.loginProvider);
         setTicketsData(prev =>
           prev.map(ticket => ({
             ...ticket,
@@ -430,6 +438,12 @@ export default function UserDashboard() {
       return;
     }
 
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError('Email không hợp lệ.');
+      setSuccess('');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -439,17 +453,32 @@ export default function UserDashboard() {
         setAvatarUrl(avatarUpdatedProfile.avatarUrl || '');
       }
 
-      const updated = await updateMyProfile({
+      // Only include email in payload if:
+      // 1. Not Google login (Google users can't change email)
+      // 2. Email was actually changed by user
+      const isGoogleLogin = loginProvider === 'GOOGLE';
+      const emailChanged = email.trim() !== originalEmail.trim();
+      const shouldUpdateEmail = !isGoogleLogin && emailChanged;
+
+      const updatePayload = {
+        ...(shouldUpdateEmail && { email: email.trim() }),
         profile: fullName,
         phoneNumber,
-      });
+        gender,
+        birthday,
+      };
+
+      const updated = await updateMyProfile(updatePayload);
 
       setUsername(updated.username || 'User');
       setEmail(updated.email || '');
+      setOriginalEmail(updated.email || ''); // Update original email after successful save
       setFullName(updated.profile || '');
       setAvatarUrl(updated.avatarUrl || '');
       setAvatarFile(null);
       setPhoneNumber(updated.phoneNumber || '');
+      setGender(updated.gender || '');
+      setBirthday(updated.birthday || '');
       setError('');
       setSuccess('Cập nhật hồ sơ thành công');
     } catch (err) {
@@ -479,6 +508,9 @@ export default function UserDashboard() {
           avatarUrl={avatarUrl}
           selectedAvatarFileName={avatarFile?.name || ''}
           phoneNumber={phoneNumber}
+          gender={gender}
+          birthday={birthday}
+          loginProvider={loginProvider}
           queueSlotSecondsLeft={queueSlotSecondsLeft}
           onReturnToBooking={queueEventId
             ? () => navigate(queueReturnPath || `/user/events/${queueEventId}/booking`)
@@ -488,7 +520,13 @@ export default function UserDashboard() {
             setSuccess('');
             setError('');
           }}
+          onEmailChange={value => {
+            setEmail(value);
+            setError('');
+          }}
           onPhoneNumberChange={setPhoneNumber}
+          onGenderChange={setGender}
+          onBirthdayChange={setBirthday}
           onProfileChange={setFullName}
           onSubmit={handleSaveProfile}
         />

@@ -77,7 +77,11 @@ public class UserService {
 
     public User saveExistingUser(User user) {
         user.setUsername(normalizeUsername(user.getUsername()));
-        user.setEmail(normalizeEmail(user.getEmail()));
+        // Only normalize and save email if it's not null
+        // This prevents overwriting existing email with null when frontend doesn't send email field
+        if (user.getEmail() != null) {
+            user.setEmail(normalizeEmail(user.getEmail()));
+        }
         return userRepository.save(user);
     }
 

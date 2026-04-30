@@ -1,11 +1,22 @@
 package com.ticketrush.features.user.dto;
 
 public class UpdateProfileRequest {
+    private String email;
     private String profile;
     private String avatarUrl;
     private String phoneNumber;
+    private String gender;
+    private String birthday;
     private Boolean emailNotificationEnabled;
     private Boolean systemNotificationEnabled;
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
     public String getProfile() {
         return profile;
@@ -29,6 +40,22 @@ public class UpdateProfileRequest {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getBirthday() {
+        return birthday;
+    }
+
+    public void setBirthday(String birthday) {
+        this.birthday = birthday;
     }
 
     public Boolean getEmailNotificationEnabled() {

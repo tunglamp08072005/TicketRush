@@ -70,6 +70,8 @@ public class SecurityConfig {
                     "/api/flash-sale/orders/**",
                     "/api/admin/events",
                     "/api/admin/events/**",
+                    "/api/admin/statistics",
+                    "/api/admin/statistics/**",
                     "/api/user/payments",
                     "/api/user/payments/**",
                     "/api/public/payments/**",

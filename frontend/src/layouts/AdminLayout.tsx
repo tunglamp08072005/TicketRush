@@ -1,4 +1,4 @@
-import { CalendarDays, CreditCard, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
+import { CalendarDays, CreditCard, LayoutDashboard, LogOut, Settings, Users, BarChart3 } from 'lucide-react';
 import { useMemo } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearAuthSession } from '../features/auth/utils/authStorage';
@@ -7,6 +7,7 @@ import AdminNotificationBell from '../features/admin-events/components/AdminNoti
 const navItems = [
   { to: '/admin/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { to: '/admin/events', label: 'Quản lý sự kiện', icon: CalendarDays },
+  { to: '/admin/demographics', label: 'Thống kê khán giả', icon: BarChart3 },
   { to: '/admin/payments', label: 'Duyệt thanh toán', icon: CreditCard },
   { to: '/admin/users', label: 'Quản lí người dùng', icon: Users },
   { to: '/admin/settings', label: 'Cài đặt', icon: Settings },
