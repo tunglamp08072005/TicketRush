@@ -59,6 +59,7 @@ public class SecurityConfig {
                     "/api/auth/register/verify",
                     "/api/auth/password/forgot",
                     "/api/auth/password/reset",
+                    "/api/support/requests",
                     "/api/user/profile",
                     "/api/user/profile/**",
                     "/api/uploads/**",
