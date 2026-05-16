@@ -13,6 +13,11 @@ export interface SubmitSupportRequestPayload {
 }
 
 export async function submitSupportRequest(payload: SubmitSupportRequestPayload): Promise<string> {
+  const { token } = getAuthSession();
+  if (!token) {
+    throw new Error('Vui lòng đăng nhập để gửi yêu cầu hỗ trợ.');
+  }
+
   const formData = new FormData();
   formData.append('issueType', payload.issueType);
   formData.append('title', payload.title);
@@ -25,10 +30,9 @@ export async function submitSupportRequest(payload: SubmitSupportRequestPayload)
     formData.append('evidence', payload.evidence);
   }
 
-  const { token } = getAuthSession();
   const response = await fetch(API_URL, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
 

@@ -151,7 +151,7 @@ public class EventService {
     }
 
     private Map<Long, TicketOrderRepository.EventOrderSalesSummary> loadOrderSalesByEventId() {
-        return ticketOrderRepository.summarizeEventSales(PaymentStatus.REJECTED).stream()
+        return ticketOrderRepository.summarizeEventSales().stream()
                 .collect(Collectors.toMap(TicketOrderRepository.EventOrderSalesSummary::getEventId, Function.identity()));
     }
 

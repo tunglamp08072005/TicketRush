@@ -72,6 +72,12 @@ function formatPaymentStatusLabel(order: PaymentOrder): string {
   if (order.paymentStatus === 'REJECTED') {
     return 'Bị từ chối';
   }
+  if (order.paymentStatus === 'EXPIRED_PENDING_REFUND') {
+    return 'Quá hạn duyệt - Chờ hoàn tiền';
+  }
+  if (order.paymentStatus === 'REFUNDED') {
+    return 'Đã hoàn tiền';
+  }
   if (order.paymentStatus === 'PENDING_REVIEW') {
     return 'Chờ duyệt';
   }
@@ -84,6 +90,12 @@ function paymentStatusClass(order: PaymentOrder): string {
   }
   if (order.paymentStatus === 'REJECTED') {
     return 'border-red-500/30 bg-red-500/10 text-red-300';
+  }
+  if (order.paymentStatus === 'EXPIRED_PENDING_REFUND') {
+    return 'border-red-500/40 bg-red-600/15 text-red-200';
+  }
+  if (order.paymentStatus === 'REFUNDED') {
+    return 'border-sky-500/30 bg-sky-500/10 text-sky-300';
   }
   if (order.paymentStatus === 'PENDING_REVIEW') {
     return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
@@ -116,19 +128,34 @@ function mapApprovedPaymentsToTickets(
   buyerPhone?: string
 ): TicketItem[] {
   return payments
-    .filter(order => order.paymentStatus === 'APPROVED' && order.orderStatus === 'SUCCESS')
+    .filter(order =>
+      (order.paymentStatus === 'APPROVED' && order.orderStatus === 'SUCCESS')
+      || order.paymentStatus === 'EXPIRED_PENDING_REFUND'
+      || order.paymentStatus === 'REFUNDED'
+    )
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     .map(order => ({
       id: `TR-${order.orderId}`,
       ticketCode: order.queueId,
       eventName: order.eventName,
       eventDate: formatTicketDate(eventInfoById.get(order.eventId)?.date ?? order.createdAt),
+      eventDateIso: eventInfoById.get(order.eventId)?.date ?? order.createdAt,
       venue: eventInfoById.get(order.eventId)?.location ?? 'Địa điểm đang cập nhật',
       seat: order.seatCodes.length > 0 ? `Ghế: ${order.seatCodes.join(', ')}` : 'Ghế: Đang cập nhật',
       ticketTier: inferTicketTier(order.seatCodes),
       buyerName: order.username,
       buyerEmail,
       buyerPhone,
+      refundAmount: order.paymentStatus === 'EXPIRED_PENDING_REFUND' || order.paymentStatus === 'REFUNDED'
+        ? order.totalAmount
+        : undefined,
+      refundStatusMessage: order.paymentStatus === 'EXPIRED_PENDING_REFUND'
+        ? `Rất tiếc, yêu cầu thanh toán của bạn không được xử lý kịp trước khi sự kiện diễn ra. TicketRush thành thật xin lỗi và đang tiến hành hoàn trả 100% số tiền ${order.totalAmount.toLocaleString('vi-VN')} VND về tài khoản của bạn.`
+        : order.paymentStatus === 'REFUNDED'
+          ? `Đơn hàng này đã được xác nhận hoàn tiền 100% số tiền ${order.totalAmount.toLocaleString('vi-VN')} VND.`
+          : undefined,
+      supportTitle: `Hỗ trợ hoàn tiền đơn hàng quá hạn duyệt #${order.queueId}`,
+      supportContent: `Tôi cần hỗ trợ hoàn tiền cho đơn hàng quá hạn duyệt ${order.queueId}. Mã đơn nội bộ: TR-${order.orderId}. Sự kiện: ${order.eventName}. Số tiền: ${order.totalAmount.toLocaleString('vi-VN')} VND.`,
       qrValue: `${order.queueId}|${order.eventId}|${order.seatCodes.join(',')}`,
       checkInInstruction: 'Vui lòng mở mã vé khi vào cổng và đến trước giờ diễn tối thiểu 30 phút.',
       terms: [
@@ -137,6 +164,11 @@ function mapApprovedPaymentsToTickets(
         'Nếu QR lỗi, nhân viên sẽ đối chiếu bằng mã vé.',
       ],
       progress: 100,
+      lifecycleStatus: order.paymentStatus === 'EXPIRED_PENDING_REFUND'
+        ? 'cancelled'
+        : order.paymentStatus === 'REFUNDED'
+          ? 'used'
+          : undefined,
       visualType: 'barcode',
     }));
 }
@@ -400,7 +432,7 @@ export default function UserDashboard() {
     .sort((left, right) => new Date(right.paymentReviewedAt || right.createdAt).getTime() - new Date(left.paymentReviewedAt || left.createdAt).getTime());
 
   const paymentHistoryOrders = paymentOrders
-    .filter(order => order.paymentStatus === 'PENDING_REVIEW' || order.paymentStatus === 'APPROVED' || order.paymentStatus === 'REJECTED')
+    .filter(order => order.paymentStatus === 'PENDING_REVIEW' || order.paymentStatus === 'APPROVED' || order.paymentStatus === 'REJECTED' || order.paymentStatus === 'EXPIRED_PENDING_REFUND' || order.paymentStatus === 'REFUNDED')
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 
   const dismissRejectedNotifications = () => {

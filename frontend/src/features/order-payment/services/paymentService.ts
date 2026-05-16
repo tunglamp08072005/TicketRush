@@ -1,6 +1,6 @@
 import { getAuthSession } from '../../auth/utils/authStorage';
 
-export type PaymentStatus = 'UNPAID' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+export type PaymentStatus = 'UNPAID' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'EXPIRED_PENDING_REFUND' | 'REFUNDED';
 export type OrderStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
 
 export interface PaymentOrder {
@@ -211,6 +211,20 @@ export async function fetchPendingPaymentsForAdmin(): Promise<PaymentOrder[]> {
   return await response.json();
 }
 
+export async function fetchExpiredPendingRefundsForAdmin(): Promise<PaymentOrder[]> {
+  const response = await fetch('http://localhost:8080/api/admin/payments/expired-refunds', {
+    method: 'GET',
+    headers: buildHeaders(true),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Không thể tải danh sách đơn quá hạn cần hoàn tiền');
+  }
+
+  return await response.json();
+}
+
 export async function approvePayment(orderId: number, note?: string): Promise<PaymentOrder> {
   const response = await fetch(`http://localhost:8080/api/admin/payments/${orderId}/approve`, {
     method: 'POST',
@@ -236,6 +250,21 @@ export async function rejectPayment(orderId: number, note?: string): Promise<Pay
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || 'Không thể từ chối thanh toán');
+  }
+
+  return await response.json();
+}
+
+export async function confirmRefund(orderId: number, note?: string): Promise<PaymentOrder> {
+  const response = await fetch(`http://localhost:8080/api/admin/payments/${orderId}/confirm-refund`, {
+    method: 'POST',
+    headers: buildHeaders(true),
+    body: JSON.stringify({ note: note ?? null }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Không thể xác nhận hoàn tiền');
   }
 
   return await response.json();

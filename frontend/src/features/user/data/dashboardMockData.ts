@@ -10,12 +10,18 @@ export interface TicketItem {
   ticketCode?: string;
   eventName: string;
   eventDate: string;
+  eventDateIso?: string;
   venue: string;
   seat: string;
+  lifecycleStatus?: 'upcoming' | 'past' | 'cancelled' | 'used';
   ticketTier?: string;
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;
+  refundAmount?: number;
+  refundStatusMessage?: string;
+  supportTitle?: string;
+  supportContent?: string;
   qrValue?: string;
   checkInInstruction?: string;
   terms?: string[];
@@ -58,6 +64,7 @@ export const myTicketsMock: TicketItem[] = [
     ticketCode: 'TR-2026-001',
     eventName: 'Rap Viet Live Concert 2026',
     eventDate: '18.05.2026 - 19:30',
+    eventDateIso: '2026-05-18T19:30:00',
     venue: 'Nhà thi đấu Phú Thọ',
     seat: 'Khu A - Hàng 3 - Ghế 12',
     ticketTier: 'VIP',
@@ -75,6 +82,7 @@ export const myTicketsMock: TicketItem[] = [
     ticketCode: 'TR-2026-002',
     eventName: 'SpaceSpeakers Galaxy Night',
     eventDate: '01.06.2026 - 20:00',
+    eventDateIso: '2026-06-01T20:00:00',
     venue: 'Quan 7 Exhibition Center',
     seat: 'VIP Lounge - Ban 05',
     ticketTier: 'Standard',
@@ -150,7 +158,9 @@ export function mapApiEventsToTicketCards(events: ApiEvent[]): TicketItem[] {
     ticketCode: `EV-${event.id}`,
     eventName: event.name,
     eventDate: formatDateTimeLabel(event.openSaleDate),
+    eventDateIso: event.openSaleDate,
     venue: event.location,
+    lifecycleStatus: event.status === 'ENDED' ? 'past' : 'upcoming',
     seat: index === 0 ? 'Khu A - Hang 3 - Ghe 12' : 'VIP Lounge - Ban 05',
     ticketTier: index === 0 ? 'VIP' : 'Standard',
     qrValue: `EV-${event.id}|${event.name}|${event.status}`,

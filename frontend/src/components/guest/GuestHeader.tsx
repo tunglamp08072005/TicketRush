@@ -134,13 +134,15 @@ export default function GuestHeader({
               <span className="nav-icon">🎭</span>
               Sự kiện
             </Link>
-            <Link
-              to="/support"
-              className={`guest-nav-link ${activeTab === 'support' ? 'active' : ''}`}
-            >
-              <span className="nav-icon">💬</span>
-              Hỗ trợ
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                to="/support"
+                className={`guest-nav-link ${activeTab === 'support' ? 'active' : ''}`}
+              >
+                <span className="nav-icon">💬</span>
+                Hỗ trợ
+              </Link>
+            ) : null}
           </nav>
         </div>
       </div>

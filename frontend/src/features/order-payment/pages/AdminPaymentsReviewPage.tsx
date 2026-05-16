@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   approvePayment,
+  confirmRefund,
+  fetchExpiredPendingRefundsForAdmin,
   fetchPendingPaymentsForAdmin,
   rejectPayment,
   type PaymentOrder,
 } from '../services/paymentService';
+
+type AdminPaymentTab = 'pending' | 'expiredRefund';
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -27,6 +31,8 @@ function formatCurrency(value: number): string {
 
 export default function AdminPaymentsReviewPage() {
   const [pendingPayments, setPendingPayments] = useState<PaymentOrder[]>([]);
+  const [expiredRefundPayments, setExpiredRefundPayments] = useState<PaymentOrder[]>([]);
+  const [activeTab, setActiveTab] = useState<AdminPaymentTab>('pending');
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [paymentError, setPaymentError] = useState('');
   const [processingPaymentId, setProcessingPaymentId] = useState<number | null>(null);
@@ -34,8 +40,12 @@ export default function AdminPaymentsReviewPage() {
   const loadPendingPayments = async () => {
     try {
       setLoadingPayments(true);
-      const data = await fetchPendingPaymentsForAdmin();
-      setPendingPayments(data);
+      const [pendingData, expiredRefundData] = await Promise.all([
+        fetchPendingPaymentsForAdmin(),
+        fetchExpiredPendingRefundsForAdmin(),
+      ]);
+      setPendingPayments(pendingData);
+      setExpiredRefundPayments(expiredRefundData);
       setPaymentError('');
     } catch (err) {
       if (err instanceof Error) {
@@ -86,12 +96,31 @@ export default function AdminPaymentsReviewPage() {
     }
   };
 
+  const handleConfirmRefund = async (orderId: number) => {
+    const note = window.prompt('Ghi chú hoàn tiền (ví dụ: mã giao dịch chuyển khoản):') || undefined;
+    try {
+      setProcessingPaymentId(orderId);
+      await confirmRefund(orderId, note);
+      await loadPendingPayments();
+    } catch (err) {
+      if (err instanceof Error) {
+        setPaymentError(err.message || 'Không thể xác nhận hoàn tiền');
+      } else {
+        setPaymentError('Không thể xác nhận hoàn tiền');
+      }
+    } finally {
+      setProcessingPaymentId(null);
+    }
+  };
+
+  const visiblePayments = activeTab === 'pending' ? pendingPayments : expiredRefundPayments;
+
   return (
     <div className="mx-auto w-full max-w-[1400px] font-sans text-slate-800">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-extrabold text-[#0f172a]">Duyệt thanh toán</h1>
-          <p className="mt-2 text-sm text-slate-500">Danh sách đơn hàng người dùng đã gửi thanh toán và đang chờ admin xác nhận.</p>
+          <p className="mt-2 text-sm text-slate-500">Theo dõi đơn chờ duyệt và các đơn quá hạn cần hoàn tiền.</p>
         </div>
 
         <button
@@ -107,6 +136,23 @@ export default function AdminPaymentsReviewPage() {
         {paymentError && (
           <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{paymentError}</p>
         )}
+
+        <div className="mb-5 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('pending')}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'pending' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            Chờ duyệt ({pendingPayments.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('expiredRefund')}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'expiredRefund' ? 'bg-red-600 text-white shadow-sm' : 'text-red-600 hover:text-red-700'}`}
+          >
+            Đơn quá hạn cần hoàn tiền ({expiredRefundPayments.length})
+          </button>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-left text-sm">
@@ -129,15 +175,15 @@ export default function AdminPaymentsReviewPage() {
                     Đang tải danh sách chờ duyệt...
                   </td>
                 </tr>
-              ) : pendingPayments.length === 0 ? (
+              ) : visiblePayments.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                    Không có đơn hàng nào đang chờ duyệt.
+                    {activeTab === 'pending' ? 'Không có đơn hàng nào đang chờ duyệt.' : 'Không có đơn quá hạn cần hoàn tiền.'}
                   </td>
                 </tr>
               ) : (
-                pendingPayments.map(order => (
-                  <tr key={order.orderId} className="border-t border-slate-200 hover:bg-slate-50">
+                visiblePayments.map(order => (
+                  <tr key={order.orderId} className={`border-t border-slate-200 hover:bg-slate-50 ${activeTab === 'expiredRefund' ? 'bg-red-50/50' : ''}`}>
                     <td className="px-4 py-3 font-medium text-slate-700">#{order.orderId}</td>
                     <td className="px-4 py-3 text-slate-600">{order.username}</td>
                     <td className="px-4 py-3 text-slate-600">{order.eventName}</td>
@@ -159,22 +205,35 @@ export default function AdminPaymentsReviewPage() {
                     <td className="px-4 py-3 text-slate-600">{order.paymentRequestedAt ? formatDate(order.paymentRequestedAt) : '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={processingPaymentId === order.orderId}
-                          onClick={() => handleApprovePayment(order.orderId)}
-                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
-                        >
-                          Duyệt
-                        </button>
-                        <button
-                          type="button"
-                          disabled={processingPaymentId === order.orderId}
-                          onClick={() => handleRejectPayment(order.orderId)}
-                          className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                        >
-                          Từ chối
-                        </button>
+                        {activeTab === 'pending' ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={processingPaymentId === order.orderId}
+                              onClick={() => handleApprovePayment(order.orderId)}
+                              className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                            >
+                              Duyệt
+                            </button>
+                            <button
+                              type="button"
+                              disabled={processingPaymentId === order.orderId}
+                              onClick={() => handleRejectPayment(order.orderId)}
+                              className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                            >
+                              Từ chối
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={processingPaymentId === order.orderId}
+                            onClick={() => handleConfirmRefund(order.orderId)}
+                            className="rounded-lg border border-red-300 bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                          >
+                            Xác nhận đã hoàn tiền
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

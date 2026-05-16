@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
-import QRCode from 'qrcode';
+import { useNavigate } from 'react-router-dom';
 import type { TicketItem } from '../../data/dashboardMockData';
 
 interface TicketCardProps {
   ticket: TicketItem;
+  isHistory?: boolean;
+  historyLabel?: string;
 }
 
 function formatReadableTicketCode(value: string): string {
@@ -56,15 +56,16 @@ function MiniQrVisual({ value }: { value: string }) {
   useEffect(() => {
     let isMounted = true;
 
-    void QRCode.toDataURL(value, {
-      errorCorrectionLevel: 'M',
-      margin: 1,
-      width: 220,
-      color: {
-        dark: '#000000',
-        light: '#ffffff',
-      },
-    })
+    void import('qrcode')
+      .then(qrCode => qrCode.toDataURL(value, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 220,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      }))
       .then((url: string) => {
         if (isMounted) {
           setQrDataUrl(url);
@@ -88,7 +89,8 @@ function MiniQrVisual({ value }: { value: string }) {
   return <img src={qrDataUrl} alt="Mã QR check-in" className="h-[120px] w-[120px] rounded-lg border border-gray-200 bg-white p-1" />;
 }
 
-export default function TicketCard({ ticket }: TicketCardProps) {
+export default function TicketCard({ ticket, isHistory = false, historyLabel = 'Đã kết thúc' }: TicketCardProps) {
+  const navigate = useNavigate();
   const cardRef = useRef<HTMLElement | null>(null);
   const [exportingImage, setExportingImage] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -105,6 +107,7 @@ export default function TicketCard({ ticket }: TicketCardProps) {
 
     try {
       setExportingImage(true);
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
@@ -127,6 +130,10 @@ export default function TicketCard({ ticket }: TicketCardProps) {
 
     try {
       setExportingPdf(true);
+      const [{ toPng }, { jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf'),
+      ]);
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
@@ -150,11 +157,23 @@ export default function TicketCard({ ticket }: TicketCardProps) {
 
   return (
     <div>
-      <article ref={cardRef} className="card-3d relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-gray-900/95 to-gray-950/95 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+      <article
+        ref={cardRef}
+        className={`card-3d relative overflow-hidden rounded-2xl border p-5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl transition ${
+          isHistory
+            ? 'border-gray-700/70 bg-gradient-to-br from-gray-900/70 to-gray-950/70 opacity-70 grayscale'
+            : 'border-white/10 bg-gradient-to-br from-gray-900/95 to-gray-950/95'
+        }`}
+      >
         {/* Gradient accent bar */}
-        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-purple-500 via-pink-500 to-orange-500" />
+        <div className={`absolute left-0 top-0 h-full w-1 ${isHistory ? 'bg-gray-600' : 'bg-gradient-to-b from-purple-500 via-pink-500 to-orange-500'}`} />
         {/* Subtle glow overlay */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
+        {isHistory && (
+          <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-gray-500/70 bg-gray-950/85 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-gray-200 shadow-lg">
+            {historyLabel}
+          </div>
+        )}
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Ticket ID: {ticket.id}</p>
@@ -199,6 +218,29 @@ export default function TicketCard({ ticket }: TicketCardProps) {
             </span>
           </p>
         </div>
+
+        {ticket.refundStatusMessage && (
+          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-950/35 p-3 text-sm leading-6 text-red-100">
+            <p>{ticket.refundStatusMessage}</p>
+            {ticket.lifecycleStatus === 'cancelled' && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('/support', {
+                    state: {
+                      supportTitle: ticket.supportTitle,
+                      supportContent: ticket.supportContent,
+                      issueType: 'payment',
+                    },
+                  });
+                }}
+                className="mt-3 rounded-lg border border-red-300/40 bg-red-500/20 px-3 py-2 text-xs font-bold text-red-100 transition hover:bg-red-500/30"
+              >
+                Yêu cầu hoàn tiền ngay
+              </button>
+            )}
+          </div>
+        )}
 
         {terms.length > 0 && (
           <div className="mb-3 rounded-xl border border-gray-800 bg-gray-950/45 p-3 text-xs text-gray-300">

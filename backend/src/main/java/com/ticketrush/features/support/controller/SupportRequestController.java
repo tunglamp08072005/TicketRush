@@ -73,6 +73,9 @@ public class SupportRequestController {
 
         try {
             User user = resolveUserFromAuthorizationHeader(authorizationHeader);
+            if (user == null) {
+                return ResponseEntity.status(401).body("Vui lòng đăng nhập để gửi yêu cầu hỗ trợ");
+            }
             supportRequestEmailService.sendSupportRequest(
                     normalizedIssueType,
                     normalizedTitle,

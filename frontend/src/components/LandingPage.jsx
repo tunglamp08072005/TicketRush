@@ -98,7 +98,7 @@ const Footer = () => (
       <div className="lp-footer-links">
         <a href="#terms">Điều khoản sử dụng</a>
         <a href="#privacy">Chính sách bảo mật</a>
-        <a href="#contact">Liên hệ: support@ticketrush.vn</a>
+        <a href="#contact">Liên hệ: dangkhuat50@gmail.com</a>
       </div>
     </div>
     <div className="lp-footer-bottom">

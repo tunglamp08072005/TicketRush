@@ -1,6 +1,7 @@
 package com.ticketrush.features.payment.service;
 
 import com.ticketrush.features.admin.notification.service.AdminNotificationHelper;
+import com.ticketrush.features.auth.service.EmailService;
 import com.ticketrush.features.event.entity.Event;
 import com.ticketrush.features.event.entity.EventZone;
 import com.ticketrush.features.event.entity.Seat;
@@ -58,6 +59,7 @@ public class PaymentService {
     private final PricingStrategyService pricingStrategyService;
     private final VnPayService vnPayService;
     private final AdminNotificationHelper notificationHelper;
+    private final EmailService emailService;
 
     public PaymentService(EventRepository eventRepository,
                           SeatRepository seatRepository,
@@ -67,7 +69,8 @@ public class PaymentService {
                           EmailTicketService emailTicketService,
                           PricingStrategyService pricingStrategyService,
                           VnPayService vnPayService,
-                          AdminNotificationHelper notificationHelper) {
+                          AdminNotificationHelper notificationHelper,
+                          EmailService emailService) {
         this.eventRepository = eventRepository;
         this.seatRepository = seatRepository;
         this.ticketOrderRepository = ticketOrderRepository;
@@ -77,6 +80,7 @@ public class PaymentService {
         this.pricingStrategyService = pricingStrategyService;
         this.vnPayService = vnPayService;
         this.notificationHelper = notificationHelper;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -204,6 +208,8 @@ public class PaymentService {
         seatRepository.releaseExpiredLocksByEventId(event.getId(), LocalDateTime.now());
 
         List<Long> requestedSeatIds = normalizeSeatIds(seatIds);
+        // Database row lock boundary: from this point until commit, concurrent
+        // requests for the same seat must wait and re-check the committed state.
         List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, requestedSeatIds);
         validateSeatCoverage(requestedSeatIds, seats);
 
@@ -285,11 +291,25 @@ public class PaymentService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<PaymentOrderDto> getExpiredPendingRefundOrders() {
+        return ticketOrderRepository.findAllByPaymentStatusWithDetails(PaymentStatus.EXPIRED_PENDING_REFUND)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
     @Transactional
     public PaymentOrderDto approvePayment(Long orderId, String note) {
         TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
 
+        if (order.getPaymentStatus() == PaymentStatus.EXPIRED_PENDING_REFUND) {
+            throw new IllegalArgumentException("Đơn hàng đã quá hạn duyệt và chỉ có thể xử lý hoàn tiền");
+        }
+        if (order.getPaymentStatus() == PaymentStatus.REFUNDED) {
+            throw new IllegalArgumentException("Đơn hàng đã được hoàn tiền");
+        }
         if (order.getPaymentStatus() != PaymentStatus.PENDING_REVIEW) {
             throw new IllegalArgumentException("Đơn hàng không ở trạng thái chờ duyệt");
         }
@@ -309,6 +329,40 @@ public class PaymentService {
 
         failOrderAndReleaseSeats(order, cleanNote(note));
         return toDto(order);
+    }
+
+    @Transactional
+    public PaymentOrderDto confirmRefund(Long orderId, String note) {
+        TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
+
+        if (order.getPaymentStatus() != PaymentStatus.EXPIRED_PENDING_REFUND) {
+            throw new IllegalArgumentException("Chỉ đơn quá hạn chờ hoàn tiền mới được xác nhận hoàn tiền");
+        }
+
+        releaseOrderSeats(order);
+        order.setStatus(OrderStatus.FAILED);
+        order.setPaymentStatus(PaymentStatus.REFUNDED);
+        order.setPaymentReviewedAt(LocalDateTime.now());
+        order.setPaymentNote(cleanNote(note) == null ? "Đã hoàn tiền 100% cho khách hàng" : cleanNote(note));
+
+        TicketOrder saved = ticketOrderRepository.save(order);
+        sendRefundEmailAfterCommit(saved);
+        return toDto(saved);
+    }
+
+    @Transactional
+    public int markExpiredPendingRefundOrders(LocalDateTime cutoff) {
+        List<TicketOrder> orders = ticketOrderRepository.findExpiredPendingReviewOrdersForUpdate(cutoff);
+        for (TicketOrder order : orders) {
+            releaseOrderSeats(order);
+            order.setStatus(OrderStatus.FAILED);
+            order.setPaymentStatus(PaymentStatus.EXPIRED_PENDING_REFUND);
+            order.setPaymentReviewedAt(LocalDateTime.now());
+            order.setPaymentNote("Quá hạn duyệt trước thời điểm sự kiện. Chờ hoàn tiền 100%.");
+        }
+        ticketOrderRepository.saveAll(orders);
+        return orders.size();
     }
 
     private CheckoutContext loadCheckoutContext(User user, Long eventId, List<Long> seatIds) {
@@ -445,6 +499,17 @@ public class PaymentService {
     }
 
     private void failOrderAndReleaseSeats(TicketOrder order, String note) {
+        releaseOrderSeats(order);
+
+        order.setStatus(OrderStatus.FAILED);
+        order.setPaymentStatus(PaymentStatus.REJECTED);
+        order.setPaymentReviewedAt(LocalDateTime.now());
+        order.setPaymentNote(cleanNote(note));
+
+        ticketOrderRepository.save(order);
+    }
+
+    private void releaseOrderSeats(TicketOrder order) {
         List<Seat> updatedSeats = new ArrayList<>();
         for (TicketOrderItem item : order.getItems()) {
             Seat seat = item.getSeat();
@@ -458,21 +523,42 @@ public class PaymentService {
             }
         }
 
-        order.setStatus(OrderStatus.FAILED);
-        order.setPaymentStatus(PaymentStatus.REJECTED);
-        order.setPaymentReviewedAt(LocalDateTime.now());
-        order.setPaymentNote(cleanNote(note));
-
         if (!updatedSeats.isEmpty()) {
             seatRepository.saveAll(updatedSeats);
             publishSeatStatusAfterCommit(order.getEvent().getId(), updatedSeats);
         }
-
-        ticketOrderRepository.save(order);
     }
 
     private void sendTicketEmailAfterCommit(TicketOrder order) {
         Runnable sender = () -> emailTicketService.sendTicketConfirmation(order);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sender.run();
+                }
+            });
+            return;
+        }
+        sender.run();
+    }
+
+    private void sendRefundEmailAfterCommit(TicketOrder order) {
+        Runnable sender = () -> {
+            String toEmail = order.getUser().getEmail();
+            if (toEmail == null || toEmail.isBlank()) {
+                return;
+            }
+            emailService.sendVerificationCode(
+                    toEmail,
+                    "TicketRush - Xac nhan hoan tien don " + order.getQueueId(),
+                    "Xin chao " + order.getUser().getUsername() + ",\n\n"
+                            + "Don hang " + order.getQueueId() + " da duoc TicketRush xac nhan hoan tien thanh cong.\n"
+                            + "So tien hoan: " + order.getTotalAmount().stripTrailingZeros().toPlainString() + " VND.\n\n"
+                            + "TicketRush thanh that xin loi vi yeu cau thanh toan cua ban khong duoc xu ly kip truoc su kien.\n"
+                            + "TicketRush"
+            );
+        };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

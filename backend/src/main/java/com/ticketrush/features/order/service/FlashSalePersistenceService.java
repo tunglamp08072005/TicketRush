@@ -46,6 +46,8 @@ public class FlashSalePersistenceService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found"));
 
+        // This is the database source of truth after Redis pre-hold. The row
+        // lock prevents two workers/users from confirming the same seat.
         List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, seatIds);
         validateSeatCoverage(seatIds, seats);
         LocalDateTime lockedUntil = LocalDateTime.now().plusMinutes(Math.max(1, holdMinutes));

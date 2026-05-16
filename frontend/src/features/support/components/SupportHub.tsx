@@ -1,6 +1,7 @@
 import { ChevronDown, Mail, UploadCloud } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   submitSupportRequest,
   type SupportIssueType,
@@ -13,6 +14,12 @@ type SupportHubProps = {
 type FaqItem = {
   question: string;
   answer: string;
+};
+
+type SupportLocationState = {
+  supportTitle?: string;
+  supportContent?: string;
+  issueType?: SupportIssueType;
 };
 
 const SUPPORT_EMAIL = 'dangkhuat50@gmail.com';
@@ -45,9 +52,11 @@ const faqItems: FaqItem[] = [
 
 export default function SupportHub({ mode = 'public' }: SupportHubProps) {
   const isDashboard = mode === 'dashboard';
-  const [issueType, setIssueType] = useState<SupportIssueType>('payment');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const location = useLocation();
+  const prefill = (location.state || {}) as SupportLocationState;
+  const [issueType, setIssueType] = useState<SupportIssueType>(prefill.issueType ?? 'payment');
+  const [title, setTitle] = useState(prefill.supportTitle ?? '');
+  const [content, setContent] = useState(prefill.supportContent ?? '');
   const [contactEmail, setContactEmail] = useState('');
   const [evidence, setEvidence] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

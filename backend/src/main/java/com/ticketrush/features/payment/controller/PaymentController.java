@@ -205,6 +205,23 @@ public class PaymentController {
         }
     }
 
+    @GetMapping("/api/admin/payments/expired-refunds")
+    public ResponseEntity<?> getExpiredPendingRefundPayments(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
+        try {
+            List<PaymentOrderDto> response = paymentService.getExpiredPendingRefundOrders();
+            return ResponseEntity.ok(response);
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Không thể tải danh sách đơn quá hạn cần hoàn tiền: " + ex.getMessage());
+        }
+    }
+
     @PostMapping("/api/admin/payments/{orderId}/approve")
     public ResponseEntity<?> approvePayment(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
@@ -246,6 +263,28 @@ public class PaymentController {
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Không thể từ chối thanh toán: " + ex.getMessage());
+        }
+    }
+
+    @PostMapping("/api/admin/payments/{orderId}/confirm-refund")
+    public ResponseEntity<?> confirmRefund(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long orderId,
+            @RequestBody(required = false) AdminPaymentReviewRequest request
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
+        try {
+            String note = request == null ? null : request.getNote();
+            PaymentOrderDto response = paymentService.confirmRefund(orderId, note);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Không thể xác nhận hoàn tiền: " + ex.getMessage());
         }
     }
 

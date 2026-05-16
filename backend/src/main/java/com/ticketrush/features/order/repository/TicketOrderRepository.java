@@ -53,6 +53,20 @@ public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> 
         """)
     List<TicketOrder> findAllByPaymentStatusWithDetails(@Param("paymentStatus") PaymentStatus paymentStatus);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select distinct o
+        from TicketOrder o
+        left join fetch o.event e
+        left join fetch o.user
+        left join fetch o.items i
+        left join fetch i.seat s
+        where o.paymentStatus = com.ticketrush.features.payment.entity.PaymentStatus.PENDING_REVIEW
+            and coalesce(e.eventStartDate, e.openSaleDate) <= :cutoff
+        order by o.createdAt asc
+        """)
+    List<TicketOrder> findExpiredPendingReviewOrdersForUpdate(@Param("cutoff") java.time.LocalDateTime cutoff);
+
     @Query("""
         select distinct o
         from TicketOrder o
@@ -84,8 +98,8 @@ public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> 
                 from TicketOrder o
                 join o.items i
                 where o.status = com.ticketrush.features.order.entity.OrderStatus.SUCCESS
-                    and o.paymentStatus <> :rejectedStatus
+                    and o.paymentStatus = com.ticketrush.features.payment.entity.PaymentStatus.APPROVED
                 group by o.event.id
                 """)
-        List<EventOrderSalesSummary> summarizeEventSales(@Param("rejectedStatus") PaymentStatus rejectedStatus);
+        List<EventOrderSalesSummary> summarizeEventSales();
 }

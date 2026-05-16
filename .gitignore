@@ -1,1 +1,26 @@
-backend/src/main/resources/application.properties 
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+target/
+
+# Local runtime storage and logs
+backend/backend/storage/
+backend/storage/
+*.log
+vite-dev.log
+vite-dev.err
+
+# Local IDE and OS files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+backend/src/main/resources/application.properties

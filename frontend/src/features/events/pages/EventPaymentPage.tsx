@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { checkoutPayment, createVnPayPayment, fetchMyPayments } from '../../order-payment/services/paymentService';
+import { checkoutPayment, fetchMyPayments } from '../../order-payment/services/paymentService';
+// VNPay is temporarily hidden from the frontend. Re-enable this import when needed:
+// import { checkoutPayment, createVnPayPayment, fetchMyPayments } from '../../order-payment/services/paymentService';
 import { getAuthSession } from '../../auth/utils/authStorage';
 import { removePendingReservation } from '../../order-payment/services/pendingReservationService';
 import { getPublicEventDetail, getPublicSeatMap, type SeatMapSeat, type UserEventDetail } from '../services/eventService';
@@ -20,7 +22,8 @@ type PaymentLocationState = {
   queueToken?: string;
 };
 
-type PaymentMethod = 'vnpay' | 'bank';
+// VNPay is temporarily hidden from the frontend. Re-enable this type when needed:
+// type PaymentMethod = 'vnpay' | 'bank';
 
 function formatVnd(value: number): string {
   return `${value.toLocaleString('vi-VN')}đ`;
@@ -91,7 +94,8 @@ export default function EventPaymentPage() {
   const [seatMap, setSeatMap] = useState<SeatMapSeat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vnpay');
+  // VNPay is temporarily hidden from the frontend. Re-enable this state when needed:
+  // const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vnpay');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
@@ -227,45 +231,46 @@ export default function EventPaymentPage() {
     window.location.href = '/user';
   };
 
-  const handleVnPayCheckout = async () => {
-    const id = Number(eventId);
-    if (!Number.isFinite(id)) {
-      setCheckoutError('Sự kiện không hợp lệ');
-      return;
-    }
-
-    if (!Array.isArray(seatIds) || seatIds.length === 0) {
-      setCheckoutError('Bạn chưa chọn ghế để thanh toán.');
-      return;
-    }
-
-    if (!queueToken) {
-      setCheckoutError('Không tìm thấy queue token hợp lệ. Vui lòng vào lại phòng chờ và thử lại.');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const checkout = await createVnPayPayment(id, seatIds, queueToken);
-
-      setCheckoutError('');
-      clearAllQueueTokensInSession();
-
-      if (reservationId) {
-        removePendingReservation(reservationId);
-      }
-
-      window.location.assign(checkout.paymentUrl);
-    } catch (err) {
-      if (err instanceof Error) {
-        setCheckoutError(err.message || 'Không thể tạo thanh toán VNPAY');
-      } else {
-        setCheckoutError('Không thể tạo thanh toán VNPAY');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // VNPay is temporarily hidden from the frontend. Re-enable this handler when needed:
+  // const handleVnPayCheckout = async () => {
+  //   const id = Number(eventId);
+  //   if (!Number.isFinite(id)) {
+  //     setCheckoutError('Sự kiện không hợp lệ');
+  //     return;
+  //   }
+  //
+  //   if (!Array.isArray(seatIds) || seatIds.length === 0) {
+  //     setCheckoutError('Bạn chưa chọn ghế để thanh toán.');
+  //     return;
+  //   }
+  //
+  //   if (!queueToken) {
+  //     setCheckoutError('Không tìm thấy queue token hợp lệ. Vui lòng vào lại phòng chờ và thử lại.');
+  //     return;
+  //   }
+  //
+  //   try {
+  //     setSubmitting(true);
+  //     const checkout = await createVnPayPayment(id, seatIds, queueToken);
+  //
+  //     setCheckoutError('');
+  //     clearAllQueueTokensInSession();
+  //
+  //     if (reservationId) {
+  //       removePendingReservation(reservationId);
+  //     }
+  //
+  //     window.location.assign(checkout.paymentUrl);
+  //   } catch (err) {
+  //     if (err instanceof Error) {
+  //       setCheckoutError(err.message || 'Không thể tạo thanh toán VNPAY');
+  //     } else {
+  //       setCheckoutError('Không thể tạo thanh toán VNPAY');
+  //     }
+  //   } finally {
+  //     setSubmitting(false);
+  //   }
+  // };
 
   const handleBankCheckout = async () => {
     const id = Number(eventId);
@@ -366,49 +371,51 @@ export default function EventPaymentPage() {
               <div className="event-payment-body">
               <p className="event-payment-event">{eventDetail?.name || 'Sự kiện'}</p>
 
-              <div className="event-payment-methods" role="group" aria-label="Chọn phương thức thanh toán">
-                <button
-                  type="button"
-                  className={paymentMethod === 'vnpay' ? 'active' : ''}
-                  onClick={() => {
-                    setPaymentMethod('vnpay');
-                    setCheckoutError('');
-                  }}
-                >
-                  VNPAY
-                </button>
-                <button
-                  type="button"
-                  className={paymentMethod === 'bank' ? 'active' : ''}
-                  onClick={() => {
-                    setPaymentMethod('bank');
-                    setCheckoutError('');
-                  }}
-                >
-                  MB Bank
-                </button>
+              {/*
+                VNPay is temporarily hidden from the frontend. Re-enable this block
+                together with paymentMethod state and handleVnPayCheckout when needed.
+
+                <div className="event-payment-methods" role="group" aria-label="Chọn phương thức thanh toán">
+                  <button
+                    type="button"
+                    className={paymentMethod === 'vnpay' ? 'active' : ''}
+                    onClick={() => {
+                      setPaymentMethod('vnpay');
+                      setCheckoutError('');
+                    }}
+                  >
+                    VNPAY
+                  </button>
+                  <button
+                    type="button"
+                    className={paymentMethod === 'bank' ? 'active' : ''}
+                    onClick={() => {
+                      setPaymentMethod('bank');
+                      setCheckoutError('');
+                    }}
+                  >
+                    MB Bank
+                  </button>
+                </div>
+
+                {paymentMethod === 'vnpay' ? (
+                  <>
+                    <p className="event-payment-note">Bạn sẽ được chuyển sang cổng VNPAY để thanh toán. Ghế được giữ trong thời hạn thanh toán của VNPAY.</p>
+                    <div className="event-payment-vnpay-box">
+                      <p><strong>Phương thức:</strong> VNPAY</p>
+                      <p><strong>Trạng thái sau thanh toán:</strong> Hệ thống tự xác nhận khi VNPAY trả kết quả thành công.</p>
+                    </div>
+                  </>
+                ) : null}
+              */}
+
+              <p className="event-payment-note">Chuyển khoản đúng nội dung bên dưới, sau đó tải ảnh minh chứng để admin duyệt thanh toán.</p>
+
+              <div className="event-payment-bank-box">
+                <p><strong>Ngân hàng:</strong> {BANK_TRANSFER_INFO.bankName}</p>
+                <p><strong>Số tài khoản:</strong> {BANK_TRANSFER_INFO.accountNumber}</p>
+                <p><strong>Nội dung chuyển khoản:</strong> {eventDetail?.id || eventId}-{seatIds.join(',')}</p>
               </div>
-
-              {paymentMethod === 'vnpay' ? (
-                <>
-                  <p className="event-payment-note">Bạn sẽ được chuyển sang cổng VNPAY để thanh toán. Ghế được giữ trong thời hạn thanh toán của VNPAY.</p>
-
-                  <div className="event-payment-vnpay-box">
-                    <p><strong>Phương thức:</strong> VNPAY</p>
-                    <p><strong>Trạng thái sau thanh toán:</strong> Hệ thống tự xác nhận khi VNPAY trả kết quả thành công.</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="event-payment-note">Chuyển khoản đúng nội dung bên dưới, sau đó tải ảnh minh chứng để admin duyệt thanh toán.</p>
-
-                  <div className="event-payment-bank-box">
-                    <p><strong>Ngân hàng:</strong> {BANK_TRANSFER_INFO.bankName}</p>
-                    <p><strong>Số tài khoản:</strong> {BANK_TRANSFER_INFO.accountNumber}</p>
-                    <p><strong>Nội dung chuyển khoản:</strong> {eventDetail?.id || eventId}-{seatIds.join(',')}</p>
-                  </div>
-                </>
-              )}
 
               <div className="event-payment-summary">
                 <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Không có ghế hợp lệ'}</p>
@@ -416,18 +423,16 @@ export default function EventPaymentPage() {
                 <p><strong>Cập nhật trạng thái ghế:</strong> Mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây</p>
               </div>
 
-              {paymentMethod === 'bank' ? (
-                <label className="event-payment-upload" htmlFor="paymentProof">
-                  Minh chứng thanh toán
-                  <input
-                    id="paymentProof"
-                    type="file"
-                    accept="image/*"
-                    onChange={event => setPaymentProof(event.target.files?.[0] ?? null)}
-                  />
-                  <span>{paymentProof ? paymentProof.name : 'Chưa chọn ảnh'}</span>
-                </label>
-              ) : null}
+              <label className="event-payment-upload" htmlFor="paymentProof">
+                Minh chứng thanh toán
+                <input
+                  id="paymentProof"
+                  type="file"
+                  accept="image/*"
+                  onChange={event => setPaymentProof(event.target.files?.[0] ?? null)}
+                />
+                <span>{paymentProof ? paymentProof.name : 'Chưa chọn ảnh'}</span>
+              </label>
 
               {checkoutError && <p className="event-payment-feedback event-payment-error">{checkoutError}</p>}
 
@@ -436,16 +441,15 @@ export default function EventPaymentPage() {
                 className="event-payment-primary"
                 disabled={submitting || selectedSeats.length === 0}
                 onClick={() => {
-                  if (paymentMethod === 'vnpay') {
-                    void handleVnPayCheckout();
-                    return;
-                  }
+                  // VNPay is temporarily hidden from the frontend. To re-enable:
+                  // if (paymentMethod === 'vnpay') {
+                  //   void handleVnPayCheckout();
+                  //   return;
+                  // }
                   void handleBankCheckout();
                 }}
               >
-                {submitting
-                  ? paymentMethod === 'vnpay' ? 'Đang tạo thanh toán...' : 'Đang gửi yêu cầu...'
-                  : paymentMethod === 'vnpay' ? 'Thanh toán qua VNPAY' : 'Xác nhận chuyển khoản MB Bank'}
+                {submitting ? 'Đang gửi yêu cầu...' : 'Xác nhận chuyển khoản MB Bank'}
               </button>
             </div>
             )

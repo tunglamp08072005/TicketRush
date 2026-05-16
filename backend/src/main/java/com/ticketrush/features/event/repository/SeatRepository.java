@@ -6,9 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 
 import java.util.List;
 
@@ -22,7 +24,16 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
         BigDecimal getSoldRevenue();
     }
 
+    /**
+     * Critical booking lock.
+     *
+     * This query maps to SELECT ... FOR UPDATE and must be used before any
+     * transition from AVAILABLE -> LOCKED/SOLD. Concurrent transactions that
+     * request the same seat are serialized by the database row lock, so only
+     * the first committed transaction can reserve the seat.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("select s from Seat s where s.event.id = :eventId and s.id in :seatIds order by s.id asc")
     List<Seat> findAllByEventIdAndIdInForUpdate(@Param("eventId") Long eventId, @Param("seatIds") List<Long> seatIds);
 
