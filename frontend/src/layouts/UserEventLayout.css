@@ -1,0 +1,63 @@
+.user-event-shell .event-detail-page,
+.user-event-shell .seat-booking-page,
+.user-event-shell .event-payment-page,
+.user-event-shell .waiting-room-page {
+  min-height: auto;
+  background: transparent;
+}
+
+.user-event-shell .event-detail-content,
+.user-event-shell .seat-booking-content {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 0;
+}
+
+.user-event-shell .event-detail-card,
+.user-event-shell .seat-booking-card,
+.user-event-shell .event-payment-card,
+.user-event-shell .waiting-room-card {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.user-event-shell .seat-booking-overlay,
+.user-event-shell .event-payment-overlay {
+  min-height: auto;
+  display: grid;
+  place-items: start center;
+  background: transparent;
+  padding: 0;
+}
+
+.user-event-shell .event-payment-card {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.user-event-shell .waiting-room-page {
+  display: grid;
+  place-items: start center;
+  padding: 0;
+}
+
+.user-event-shell .waiting-room-card {
+  width: min(840px, 100%);
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .user-event-shell {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .user-event-shell aside {
+    width: 100%;
+    height: auto;
+    min-height: auto;
+  }
+
+  .user-event-content {
+    overflow: visible;
+  }
+}

@@ -15,6 +15,7 @@ const AdminPaymentsReviewPage = lazy(() => import('./features/order-payment/page
 const AuthPage = lazy(() => import('./features/auth/pages/AuthPage'));
 const UserDashboard = lazy(() => import('./features/user/pages/UserDashboard'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const UserEventLayout = lazy(() => import('./layouts/UserEventLayout'));
 const AdminEventDashboard = lazy(() => import('./features/admin-events/pages/AdminEventDashboard'));
 const AdminOverviewPage = lazy(() => import('./features/admin-events/pages/AdminOverviewPage'));
 const AdminSettingsPage = lazy(() => import('./features/admin-events/pages/AdminSettingsPage'));
@@ -62,14 +63,6 @@ export default function App() {
           <Route path="/events/:eventId/booking" element={<EventSeatBookingPage />} />
           <Route path="/events/:eventId/booking/payment" element={<EventPaymentPage />} />
           <Route path="/payment-result" element={<PaymentResultPage />} />
-          <Route
-            path="/user/events/:eventId/payment/:orderId"
-            element={
-              <ProtectedRoute requiredRole="USER">
-                <EventPaymentPage />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/auth" element={<AuthPage />} />
           <Route
             path="/user"
@@ -80,37 +73,19 @@ export default function App() {
             }
           />
           <Route
-            path="/user/events/:eventId"
+            path="/user/events"
             element={
               <ProtectedRoute requiredRole="USER">
-                <EventDetailPage />
+                <UserEventLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/user/events/:eventId/waiting-room"
-            element={
-              <ProtectedRoute requiredRole="USER">
-                <EventWaitingRoomPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/user/events/:eventId/booking"
-            element={
-              <ProtectedRoute requiredRole="USER">
-                <EventSeatBookingPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/user/events/:eventId/booking/payment"
-            element={
-              <ProtectedRoute requiredRole="USER">
-                <EventPaymentPage />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route path=":eventId" element={<EventDetailPage />} />
+            <Route path=":eventId/waiting-room" element={<EventWaitingRoomPage />} />
+            <Route path=":eventId/booking" element={<EventSeatBookingPage />} />
+            <Route path=":eventId/booking/payment" element={<EventPaymentPage />} />
+            <Route path=":eventId/payment/:orderId" element={<EventPaymentPage />} />
+          </Route>
           <Route
             path="/admin"
             element={

@@ -32,7 +32,7 @@ export default function DashboardHeader({
   notificationCount = 0,
   notifications = [],
   searchValue = '',
-  searchVariant: _searchVariant = 'default',
+  searchVariant = 'default',
   onSearchValueChange,
   onSearchSubmit,
   onOpenProfile,
@@ -62,6 +62,7 @@ export default function DashboardHeader({
 
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-6 relative z-30">
+      {searchVariant === 'events' ? (
       <form
         className="min-w-[280px] max-w-[500px] flex-1"
         onSubmit={event => {
@@ -87,6 +88,9 @@ export default function DashboardHeader({
           </div>
         </div>
       </form>
+      ) : (
+        <div className="min-w-[280px] max-w-[500px] flex-1" />
+      )}
 
       <div className="flex items-center gap-4">
         {/* Notifications */}
