@@ -11,12 +11,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.TimeZone;
 
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
 public class TicketRushApplication {
     public static void main(String[] args) {
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
         SpringApplication.run(TicketRushApplication.class, args);
     }
 
