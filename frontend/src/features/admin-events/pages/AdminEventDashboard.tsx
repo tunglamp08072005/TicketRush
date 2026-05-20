@@ -2,8 +2,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import AddEventForm from '../components/admin/AddEventForm';
 import {
+  archiveAdminEvent,
   deleteAdminEvent,
   fetchAdminEvents,
+  publicAdminEvent,
   type AdminEvent,
 } from '../../events/services/eventApi';
 
@@ -104,6 +106,7 @@ export default function AdminEventDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
+  const [togglingVisibilityEventId, setTogglingVisibilityEventId] = useState<number | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   const stats = useMemo(() => {
@@ -186,6 +189,26 @@ export default function AdminEventDashboard() {
       }
     } finally {
       setDeletingEventId(null);
+    }
+  };
+
+  const handleToggleVisibility = async (event: AdminEvent) => {
+    try {
+      setTogglingVisibilityEventId(event.id);
+      if (event.archived) {
+        await publicAdminEvent(event.id);
+      } else {
+        await archiveAdminEvent(event.id);
+      }
+      await loadEvents(searchKeyword, true);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'Không thể cập nhật trạng thái hiển thị sự kiện');
+      } else {
+        setError('Không thể cập nhật trạng thái hiển thị sự kiện');
+      }
+    } finally {
+      setTogglingVisibilityEventId(null);
     }
   };
 
@@ -363,6 +386,20 @@ export default function AdminEventDashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVisibility(event)}
+                            disabled={togglingVisibilityEventId === event.id}
+                            className={`rounded-lg border p-2 transition disabled:opacity-60 ${
+                              event.archived
+                                ? 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50'
+                                : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
+                            }`}
+                            title={event.archived ? 'Public sự kiện' : 'Archive sự kiện'}
+                            aria-label={event.archived ? 'Public sự kiện' : 'Archive sự kiện'}
+                          >
+                            {event.archived ? 'Public' : 'Archive'}
+                          </button>
                           <button
                             type="button"
                             onClick={() => setEditingEvent(event)}

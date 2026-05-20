@@ -18,7 +18,7 @@ import {
   type DashboardMenuKey,
 } from '../data/dashboardMockData';
 import { getPublicEventDetail, searchPublicEvents } from '../../events/services/eventService';
-import { fetchMyPayments, releaseHeldSeatsForPayment, type PaymentOrder } from '../../order-payment/services/paymentService';
+import { fetchMyPayments, releaseHeldSeatsForPayment, submitRefundBankInfo, type PaymentOrder } from '../../order-payment/services/paymentService';
 import {
   getPendingReservations,
   removePendingReservation,
@@ -193,6 +193,7 @@ export default function UserDashboard() {
   const [pendingReservations, setPendingReservations] = useState<PendingReservation[]>([]);
   const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
   const [unreadRejectedOrderIds, setUnreadRejectedOrderIds] = useState<number[]>([]);
+  const [processingRefundBankOrderId, setProcessingRefundBankOrderId] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [systemNotificationEnabled, setSystemNotificationEnabled] = useState(true);
 
@@ -526,6 +527,32 @@ export default function UserDashboard() {
     }
   };
 
+  const handleSubmitRefundBankInfo = async (order: PaymentOrder) => {
+    const bankName = window.prompt('Nhap ten ngan hang nhan hoan tien:');
+    if (!bankName?.trim()) return;
+    const bankAccountNumber = window.prompt('Nhap so tai khoan nhan hoan tien:');
+    if (!bankAccountNumber?.trim()) return;
+    const bankAccountHolder = window.prompt('Nhap ten chu tai khoan:');
+    if (!bankAccountHolder?.trim()) return;
+
+    try {
+      setProcessingRefundBankOrderId(order.orderId);
+      await submitRefundBankInfo(order.orderId, { bankName, bankAccountNumber, bankAccountHolder });
+      const orders = await fetchMyPayments();
+      setPaymentOrders(orders);
+      setPaymentsError('');
+      setSuccess('Da gui thong tin nhan hoan tien. Admin se xu ly som.');
+    } catch (err) {
+      if (err instanceof Error) {
+        setPaymentsError(err.message || 'Khong the gui thong tin nhan hoan tien');
+      } else {
+        setPaymentsError('Khong the gui thong tin nhan hoan tien');
+      }
+    } finally {
+      setProcessingRefundBankOrderId(null);
+    }
+  };
+
   const renderMainContent = () => {
     if (activeMenu === 'account') {
       return (
@@ -740,6 +767,26 @@ export default function UserDashboard() {
                     {order.paymentStatus === 'APPROVED' ? (
                       <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
                         Thanh toán đã được duyệt. Vé của bạn đã sẵn sàng trong mục Vé của tôi.
+                      </div>
+                    ) : null}
+
+                    {order.paymentStatus === 'EXPIRED_PENDING_REFUND' ? (
+                      <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                        <p>Don hang qua han duyet. He thong se hoan tien 100%.</p>
+                        {order.refundBankName && order.refundBankAccountNumber && order.refundBankAccountHolder ? (
+                          <p className="mt-1 text-red-100/90">
+                            Da nhan thong tin tai khoan: {order.refundBankName} - {order.refundBankAccountNumber} ({order.refundBankAccountHolder}).
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={processingRefundBankOrderId === order.orderId}
+                            onClick={() => void handleSubmitRefundBankInfo(order)}
+                            className="mt-2 rounded-lg border border-red-300 bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                          >
+                            Nhap thong tin nhan hoan tien
+                          </button>
+                        )}
                       </div>
                     ) : null}
                   </article>

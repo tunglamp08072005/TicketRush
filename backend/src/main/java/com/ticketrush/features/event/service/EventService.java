@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -155,10 +156,22 @@ public class EventService {
                 .collect(Collectors.toMap(TicketOrderRepository.EventOrderSalesSummary::getEventId, Function.identity()));
     }
 
-    private void syncEventPublicationState() {
+    public int syncEventPublicationState() {
         LocalDateTime now = LocalDateTime.now();
-        eventRepository.autoArchiveBySaleEndDate(now);
-        eventRepository.autoPublishByOpenSaleDate(now);
+        int archived = eventRepository.autoArchiveBySaleEndDate(now);
+        int published = eventRepository.autoPublishByOpenSaleDate(now);
+        return archived + published;
+    }
+
+    @Transactional
+    public EventDto setEventArchived(Long eventId, boolean archived) {
+        Event event = eventRepository.findDetailById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+
+        event.setArchived(archived);
+        event.setPublicVisible(!archived);
+        Event saved = eventRepository.save(event);
+        return toDto(saved, Map.of());
     }
 
     @Transactional
@@ -201,6 +214,10 @@ public class EventService {
 
         if (request.getSaleEndDate().isAfter(request.getEventStartDate())) {
             throw new IllegalArgumentException("Sale end date must be before event start date");
+        }
+        long hoursBetweenSaleEndAndStart = Duration.between(request.getSaleEndDate(), request.getEventStartDate()).toHours();
+        if (hoursBetweenSaleEndAndStart < 12) {
+            throw new IllegalArgumentException("Sale end time must be at least 12 hours before event start time");
         }
 
         event.setName(request.getName().trim());

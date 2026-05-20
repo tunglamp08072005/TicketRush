@@ -3,6 +3,7 @@ package com.ticketrush.features.payment.controller;
 import com.ticketrush.features.payment.dto.AdminPaymentReviewRequest;
 import com.ticketrush.features.payment.dto.PaymentOrderDto;
 import com.ticketrush.features.payment.dto.SeatHoldResponseDto;
+import com.ticketrush.features.payment.dto.RefundBankInfoRequest;
 import com.ticketrush.features.payment.dto.SeatReleaseResponseDto;
 import com.ticketrush.features.payment.dto.VnPayCheckoutResponseDto;
 import com.ticketrush.features.payment.dto.VnPayReturnResponseDto;
@@ -185,6 +186,30 @@ public class PaymentController {
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Không thể tải danh sách thanh toán: " + ex.getMessage());
+        }
+    }
+
+    @PostMapping("/api/user/payments/{orderId}/refund-bank-info")
+    public ResponseEntity<?> submitRefundBankInfo(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long orderId,
+            @RequestBody RefundBankInfoRequest request
+    ) {
+        try {
+            User user = resolveUser(authorizationHeader);
+            PaymentOrderDto response = paymentService.submitRefundBankInfo(
+                    user,
+                    orderId,
+                    request.getBankName(),
+                    request.getBankAccountNumber(),
+                    request.getBankAccountHolder()
+            );
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Khong the cap nhat thong tin nhan hoan tien: " + ex.getMessage());
         }
     }
 

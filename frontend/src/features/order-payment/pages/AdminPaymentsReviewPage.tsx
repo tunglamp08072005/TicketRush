@@ -201,7 +201,16 @@ export default function AdminPaymentsReviewPage() {
                         '-'
                       )}
                     </td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{formatCurrency(order.totalAmount)}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-800">
+                      <p>{formatCurrency(order.totalAmount)}</p>
+                      {activeTab === 'expiredRefund' && (
+                        <p className="mt-1 text-xs font-normal text-slate-600">
+                          {order.refundBankName && order.refundBankAccountNumber && order.refundBankAccountHolder
+                            ? `${order.refundBankName} - ${order.refundBankAccountNumber} (${order.refundBankAccountHolder})`
+                            : 'Chua co thong tin tai khoan nhan hoan tien'}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{order.paymentRequestedAt ? formatDate(order.paymentRequestedAt) : '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
