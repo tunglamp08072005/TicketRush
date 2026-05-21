@@ -3,7 +3,8 @@
 .user-event-shell .event-payment-page,
 .user-event-shell .waiting-room-page {
   min-height: auto;
-  background: transparent;
+  background:
+    linear-gradient(135deg, rgba(255, 247, 237, 0.95), rgba(240, 249, 255, 0.95) 48%, #f8fafc);
 }
 
 .user-event-shell .event-detail-content,
@@ -17,7 +18,7 @@
 .user-event-shell .seat-booking-card,
 .user-event-shell .event-payment-card,
 .user-event-shell .waiting-room-card {
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.1);
 }
 
 .user-event-shell .seat-booking-overlay,

@@ -17,6 +17,7 @@ const UserDashboard = lazy(() => import('./features/user/pages/UserDashboard'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const UserEventLayout = lazy(() => import('./layouts/UserEventLayout'));
 const AdminEventDashboard = lazy(() => import('./features/admin-events/pages/AdminEventDashboard'));
+const AdminEventCreatePage = lazy(() => import('./features/admin-events/pages/AdminEventCreatePage'));
 const AdminOverviewPage = lazy(() => import('./features/admin-events/pages/AdminOverviewPage'));
 const AdminSettingsPage = lazy(() => import('./features/admin-events/pages/AdminSettingsPage'));
 const AdminDemographicsPage = lazy(() => import('./features/admin-events/pages/AdminDemographicsPage'));
@@ -97,6 +98,7 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminOverviewPage />} />
             <Route path="events" element={<AdminEventDashboard />} />
+            <Route path="events/new" element={<AdminEventCreatePage />} />
             <Route path="demographics" element={<AdminDemographicsPage />} />
             <Route path="payments" element={<AdminPaymentsReviewPage />} />
             <Route path="users" element={<AdminUsersOverviewPage />} />

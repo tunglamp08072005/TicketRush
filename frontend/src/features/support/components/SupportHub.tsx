@@ -110,7 +110,7 @@ export default function SupportHub({ mode = 'public' }: SupportHubProps) {
   }
 
   return (
-    <section className={isDashboard ? 'text-white' : 'text-slate-100'}>
+    <section className={isDashboard ? 'support-hub support-hub-dashboard text-white' : 'support-hub text-slate-100'}>
       <div className={containerClass}>
         <div
           className={`mb-6 overflow-hidden rounded-[24px] border p-6 shadow-[0_24px_60px_rgba(15,23,42,0.34)] md:p-8 ${

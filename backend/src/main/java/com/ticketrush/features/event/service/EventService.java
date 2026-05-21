@@ -216,7 +216,7 @@ public class EventService {
             throw new IllegalArgumentException("Sale end date must be before event start date");
         }
         long hoursBetweenSaleEndAndStart = Duration.between(request.getSaleEndDate(), request.getEventStartDate()).toHours();
-        if (hoursBetweenSaleEndAndStart < 12) {
+        if (hoursBetweenSaleEndAndStart < 1) {
             throw new IllegalArgumentException("Sale end time must be at least 12 hours before event start time");
         }
 

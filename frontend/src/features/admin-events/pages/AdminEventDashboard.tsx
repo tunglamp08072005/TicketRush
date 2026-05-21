@@ -1,5 +1,6 @@
 ﻿import { CalendarDays, CircleDollarSign, Pencil, Plus, Ticket, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AddEventForm from '../components/admin/AddEventForm';
 import {
   archiveAdminEvent,
@@ -99,11 +100,11 @@ function resolveSeatProgress(event: AdminEvent): { ratio: number; soldSeats: num
 
 export default function AdminEventDashboard() {
   const POLL_INTERVAL_MS = 5000;
+  const navigate = useNavigate();
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
   const [togglingVisibilityEventId, setTogglingVisibilityEventId] = useState<number | null>(null);
@@ -227,7 +228,7 @@ export default function AdminEventDashboard() {
 
         <button
           type="button"
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => navigate('/admin/events/new')}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
           <Plus className="h-4 w-4" />
@@ -334,7 +335,7 @@ export default function AdminEventDashboard() {
                       <p className="mt-1 text-xs text-slate-500">Tạo sự kiện đầu tiên để bắt đầu quản lý bán vé Flash Sale.</p>
                       <button
                         type="button"
-                        onClick={() => setIsAddModalOpen(true)}
+                        onClick={() => navigate('/admin/events/new')}
                         className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                       >
                         <Plus className="h-4 w-4" />
@@ -429,20 +430,6 @@ export default function AdminEventDashboard() {
           </table>
         </div>
       </section>
-
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-[2px]">
-          <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-2xl">
-            <AddEventForm
-              onCancel={() => setIsAddModalOpen(false)}
-              onCreated={async () => {
-                setIsAddModalOpen(false);
-                await loadEvents(searchKeyword);
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {editingEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-[2px]">

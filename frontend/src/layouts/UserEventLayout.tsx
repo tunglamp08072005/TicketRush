@@ -21,8 +21,7 @@ export default function UserEventLayout() {
   };
 
   return (
-    <div className="user-event-shell relative flex min-h-screen overflow-hidden bg-gradient-to-br from-gray-950 via-[#0a0612] to-gray-950 font-['Inter'] text-white">
-      <div className="animated-bg" />
+    <div className="user-event-shell relative flex min-h-screen overflow-hidden bg-[#f6f8fc] font-['Inter'] text-slate-900">
       <Sidebar
         menuItems={sidebarMenuItems}
         activeMenu="events"

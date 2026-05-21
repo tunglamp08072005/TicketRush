@@ -285,7 +285,7 @@ export async function submitRefundBankInfo(
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || 'Khong the cap nhat thong tin nhan hoan tien');
+    throw new Error(message || 'Không thể cập nhật thông tin nhận hoàn tiền');
   }
 
   return await response.json();
