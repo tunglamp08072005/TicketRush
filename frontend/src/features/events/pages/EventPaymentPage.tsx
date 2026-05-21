@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { checkoutPayment, fetchMyPayments } from '../../order-payment/services/paymentService';
 // VNPay is temporarily hidden from the frontend. Re-enable this import when needed:
@@ -35,6 +35,14 @@ const BANK_TRANSFER_INFO = {
 };
 const HEARTBEAT_INTERVAL_MS = 30000;
 const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
+const IMMEDIATE_CHECKOUT_LIMIT_SECONDS = 10 * 60;
+
+function formatCountdown(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
 
 export default function EventPaymentPage() {
   const navigate = useNavigate();
@@ -102,6 +110,70 @@ export default function EventPaymentPage() {
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [bookedQueueId, setBookedQueueId] = useState('');
   const [bookedSeatCodes, setBookedSeatCodes] = useState<string[]>([]);
+  const [checkoutDeadlineEpochMs, setCheckoutDeadlineEpochMs] = useState<number | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(IMMEDIATE_CHECKOUT_LIMIT_SECONDS);
+  const isImmediateCheckoutFlow = !reservationIdFromState && !parsedOrderId;
+  const canReturnToSeatSelection = isImmediateCheckoutFlow;
+  const isCheckoutExpired = isImmediateCheckoutFlow && countdownSeconds <= 0;
+  const checkoutTimerStorageKey = useMemo(() => {
+    if (!Number.isFinite(parsedEventId) || !queueToken) {
+      return '';
+    }
+    return `ticketrush:immediate-checkout-deadline:${parsedEventId}:${queueToken}`;
+  }, [parsedEventId, queueToken]);
+
+  useEffect(() => {
+    if (!isImmediateCheckoutFlow || !checkoutTimerStorageKey) {
+      return;
+    }
+
+    const persistedDeadline = window.sessionStorage.getItem(checkoutTimerStorageKey);
+    const now = Date.now();
+    const fallbackDeadline = now + IMMEDIATE_CHECKOUT_LIMIT_SECONDS * 1000;
+    const parsedDeadline = persistedDeadline ? Number(persistedDeadline) : NaN;
+    const deadline = Number.isFinite(parsedDeadline) && parsedDeadline > now
+      ? parsedDeadline
+      : fallbackDeadline;
+
+    window.sessionStorage.setItem(checkoutTimerStorageKey, String(deadline));
+    setCheckoutDeadlineEpochMs(deadline);
+    setCountdownSeconds(Math.max(0, Math.ceil((deadline - now) / 1000)));
+  }, [checkoutTimerStorageKey, isImmediateCheckoutFlow]);
+
+  useEffect(() => {
+    if (!isImmediateCheckoutFlow || !checkoutDeadlineEpochMs || bookingCompleted) {
+      return;
+    }
+
+    const tick = () => {
+      const secondsLeft = Math.max(0, Math.ceil((checkoutDeadlineEpochMs - Date.now()) / 1000));
+      setCountdownSeconds(secondsLeft);
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [bookingCompleted, checkoutDeadlineEpochMs, isImmediateCheckoutFlow]);
+
+  useEffect(() => {
+    if (!isCheckoutExpired || bookingCompleted || !Number.isFinite(parsedEventId)) {
+      return;
+    }
+
+    if (queueToken) {
+      sendVirtualQueueReleaseBeacon(parsedEventId, queueToken);
+    }
+
+    clearAllQueueTokensInSession();
+    if (checkoutTimerStorageKey) {
+      window.sessionStorage.removeItem(checkoutTimerStorageKey);
+    }
+
+    setCheckoutError('Hết thời gian thanh toán. Vui lòng chọn lại ghế để tiếp tục.');
+    navigate(`/user/events/${parsedEventId}/booking`, { replace: true });
+  }, [bookingCompleted, checkoutTimerStorageKey, isCheckoutExpired, navigate, parsedEventId, queueToken]);
 
   useEffect(() => {
     if (!token) {
@@ -117,7 +189,7 @@ export default function EventPaymentPage() {
     const id = Number(eventId);
 
     // When coming from dashboard (existing reservation), queueToken & seatIds
-    // are provided via location state — skip the "session expired" redirect.
+    // are provided via location state and skip the "session expired" redirect.
     const isResumedReservation = !!reservationIdFromState;
 
     // Only require queueToken when NOT resuming an existing reservation
@@ -228,49 +300,11 @@ export default function EventPaymentPage() {
     }
 
     clearAllQueueTokensInSession();
+    if (checkoutTimerStorageKey) {
+      window.sessionStorage.removeItem(checkoutTimerStorageKey);
+    }
     window.location.href = '/user';
   };
-
-  // VNPay is temporarily hidden from the frontend. Re-enable this handler when needed:
-  // const handleVnPayCheckout = async () => {
-  //   const id = Number(eventId);
-  //   if (!Number.isFinite(id)) {
-  //     setCheckoutError('Sự kiện không hợp lệ');
-  //     return;
-  //   }
-  //
-  //   if (!Array.isArray(seatIds) || seatIds.length === 0) {
-  //     setCheckoutError('Bạn chưa chọn ghế để thanh toán.');
-  //     return;
-  //   }
-  //
-  //   if (!queueToken) {
-  //     setCheckoutError('Không tìm thấy queue token hợp lệ. Vui lòng vào lại phòng chờ và thử lại.');
-  //     return;
-  //   }
-  //
-  //   try {
-  //     setSubmitting(true);
-  //     const checkout = await createVnPayPayment(id, seatIds, queueToken);
-  //
-  //     setCheckoutError('');
-  //     clearAllQueueTokensInSession();
-  //
-  //     if (reservationId) {
-  //       removePendingReservation(reservationId);
-  //     }
-  //
-  //     window.location.assign(checkout.paymentUrl);
-  //   } catch (err) {
-  //     if (err instanceof Error) {
-  //       setCheckoutError(err.message || 'Không thể tạo thanh toán VNPAY');
-  //     } else {
-  //       setCheckoutError('Không thể tạo thanh toán VNPAY');
-  //     }
-  //   } finally {
-  //     setSubmitting(false);
-  //   }
-  // };
 
   const handleBankCheckout = async () => {
     const id = Number(eventId);
@@ -309,6 +343,9 @@ export default function EventPaymentPage() {
       setBookedSeatCodes(order.seatCodes);
       setPaymentProof(null);
       clearAllQueueTokensInSession();
+      if (checkoutTimerStorageKey) {
+        window.sessionStorage.removeItem(checkoutTimerStorageKey);
+      }
 
       if (reservationId) {
         removePendingReservation(reservationId);
@@ -324,11 +361,23 @@ export default function EventPaymentPage() {
     }
   };
 
+  const handleBackToSeatBooking = () => {
+    const id = Number(eventId);
+    if (!Number.isFinite(id)) {
+      return;
+    }
+
+    navigate(`/user/events/${id}/booking`, {
+      state: {
+        queueToken,
+        admittedUntilEpochMs: getQueueAdmittedUntilFromSession(id),
+      },
+    });
+  };
+
   return (
     <main className="event-payment-page">
-      <div
-        className="event-payment-overlay"
-      >
+      <div className="event-payment-overlay">
         <section className="event-payment-card">
           <header className="event-payment-header">
             <h1>Thanh toán đặt ghế</h1>
@@ -369,89 +418,70 @@ export default function EventPaymentPage() {
               </div>
             ) : (
               <div className="event-payment-body">
-              <p className="event-payment-event">{eventDetail?.name || 'Sự kiện'}</p>
+                <p className="event-payment-event">{eventDetail?.name || 'Sự kiện'}</p>
 
-              {/*
-                VNPay is temporarily hidden from the frontend. Re-enable this block
-                together with paymentMethod state and handleVnPayCheckout when needed.
+                {isImmediateCheckoutFlow ? (
+                  <div className={`event-payment-timer ${isCheckoutExpired ? 'expired' : ''}`}>
+                    <p><strong>Thời gian thanh toán còn lại:</strong> {formatCountdown(countdownSeconds)}</p>
+                    <span>Hết thời gian, phiên thanh toán sẽ tự đóng để mở ghế cho người khác.</span>
+                  </div>
+                ) : null}
 
-                <div className="event-payment-methods" role="group" aria-label="Chọn phương thức thanh toán">
-                  <button
-                    type="button"
-                    className={paymentMethod === 'vnpay' ? 'active' : ''}
-                    onClick={() => {
-                      setPaymentMethod('vnpay');
-                      setCheckoutError('');
-                    }}
-                  >
-                    VNPAY
-                  </button>
-                  <button
-                    type="button"
-                    className={paymentMethod === 'bank' ? 'active' : ''}
-                    onClick={() => {
-                      setPaymentMethod('bank');
-                      setCheckoutError('');
-                    }}
-                  >
-                    MB Bank
-                  </button>
+                <p className="event-payment-note">
+                  Chuyển khoản đúng nội dung bên dưới, sau đó tải ảnh minh chứng để admin duyệt thanh toán.
+                </p>
+
+                <div className="event-payment-bank-box">
+                  <p><strong>Ngân hàng:</strong> {BANK_TRANSFER_INFO.bankName}</p>
+                  <p><strong>Số tài khoản:</strong> {BANK_TRANSFER_INFO.accountNumber}</p>
+                  <p><strong>Nội dung chuyển khoản:</strong> {eventDetail?.id || eventId}-{seatIds.join(',')}</p>
                 </div>
 
-                {paymentMethod === 'vnpay' ? (
-                  <>
-                    <p className="event-payment-note">Bạn sẽ được chuyển sang cổng VNPAY để thanh toán. Ghế được giữ trong thời hạn thanh toán của VNPAY.</p>
-                    <div className="event-payment-vnpay-box">
-                      <p><strong>Phương thức:</strong> VNPAY</p>
-                      <p><strong>Trạng thái sau thanh toán:</strong> Hệ thống tự xác nhận khi VNPAY trả kết quả thành công.</p>
-                    </div>
-                  </>
+                <div className="event-payment-summary">
+                  <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Không có ghế hợp lệ'}</p>
+                  <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
+                  <p><strong>Cập nhật trạng thái ghế:</strong> Mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây</p>
+                </div>
+
+                <label className="event-payment-upload" htmlFor="paymentProof">
+                  Minh chứng thanh toán
+                  <input
+                    id="paymentProof"
+                    type="file"
+                    accept="image/*"
+                    onChange={event => setPaymentProof(event.target.files?.[0] ?? null)}
+                  />
+                  <span>{paymentProof ? paymentProof.name : 'Chưa chọn ảnh'}</span>
+                </label>
+
+                {checkoutError && <p className="event-payment-feedback event-payment-error">{checkoutError}</p>}
+
+                <button
+                  type="button"
+                  className="event-payment-primary"
+                  disabled={submitting || selectedSeats.length === 0 || isCheckoutExpired}
+                  onClick={() => {
+                    void handleBankCheckout();
+                  }}
+                >
+                  {isCheckoutExpired
+                    ? 'Đã hết thời gian thanh toán'
+                    : submitting ? 'Đang gửi yêu cầu...' : 'Xác nhận chuyển khoản MB Bank'}
+                </button>
+                <button
+                  type="button"
+                  className="event-payment-secondary"
+                  disabled={submitting || isCheckoutExpired || !canReturnToSeatSelection}
+                  onClick={handleBackToSeatBooking}
+                >
+                  Quay lại chọn ghế
+                </button>
+                {!canReturnToSeatSelection ? (
+                  <p className="event-payment-note">
+                    Đơn giữ chỗ chỉ được thanh toán theo đúng ghế đã giữ để đảm bảo công bằng cho hàng đợi.
+                  </p>
                 ) : null}
-              */}
-
-              <p className="event-payment-note">Chuyển khoản đúng nội dung bên dưới, sau đó tải ảnh minh chứng để admin duyệt thanh toán.</p>
-
-              <div className="event-payment-bank-box">
-                <p><strong>Ngân hàng:</strong> {BANK_TRANSFER_INFO.bankName}</p>
-                <p><strong>Số tài khoản:</strong> {BANK_TRANSFER_INFO.accountNumber}</p>
-                <p><strong>Nội dung chuyển khoản:</strong> {eventDetail?.id || eventId}-{seatIds.join(',')}</p>
               </div>
-
-              <div className="event-payment-summary">
-                <p><strong>Ghế đã chọn:</strong> {selectedSeats.length > 0 ? selectedSeats.map(seat => seat.seatCode).join(', ') : 'Không có ghế hợp lệ'}</p>
-                <p><strong>Tổng tiền:</strong> {formatVnd(selectedTotal)}</p>
-                <p><strong>Cập nhật trạng thái ghế:</strong> Mỗi {SEAT_MAP_REFRESH_INTERVAL_MS / 1000} giây</p>
-              </div>
-
-              <label className="event-payment-upload" htmlFor="paymentProof">
-                Minh chứng thanh toán
-                <input
-                  id="paymentProof"
-                  type="file"
-                  accept="image/*"
-                  onChange={event => setPaymentProof(event.target.files?.[0] ?? null)}
-                />
-                <span>{paymentProof ? paymentProof.name : 'Chưa chọn ảnh'}</span>
-              </label>
-
-              {checkoutError && <p className="event-payment-feedback event-payment-error">{checkoutError}</p>}
-
-              <button
-                type="button"
-                className="event-payment-primary"
-                disabled={submitting || selectedSeats.length === 0}
-                onClick={() => {
-                  // VNPay is temporarily hidden from the frontend. To re-enable:
-                  // if (paymentMethod === 'vnpay') {
-                  //   void handleVnPayCheckout();
-                  //   return;
-                  // }
-                  void handleBankCheckout();
-                }}
-              >
-                {submitting ? 'Đang gửi yêu cầu...' : 'Xác nhận chuyển khoản MB Bank'}
-              </button>
-            </div>
             )
           ) : null}
         </section>

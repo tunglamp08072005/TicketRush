@@ -64,6 +64,35 @@
   font-size: 0.96rem;
 }
 
+.event-payment-timer {
+  border: 1px solid #fdba74;
+  border-radius: 16px;
+  background: #fff7ed;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.event-payment-timer p {
+  margin: 0;
+  color: #9a3412;
+}
+
+.event-payment-timer span {
+  color: #7c2d12;
+  font-size: 0.9rem;
+}
+
+.event-payment-timer.expired {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.event-payment-timer.expired p,
+.event-payment-timer.expired span {
+  color: #b91c1c;
+}
+
 .event-payment-methods {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -162,10 +191,22 @@
   cursor: pointer;
 }
 
-.event-payment-primary:disabled {
+.event-payment-primary:disabled,
+.event-payment-secondary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.event-payment-secondary {
+  width: fit-content;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 800;
+  color: #334155;
+  background: #fff;
+  cursor: pointer;
 }
 
 .event-payment-success {
