@@ -610,3 +610,130 @@ img:not([src]) {
   color: #fff !important;
   box-shadow: 0 12px 28px rgba(249, 115, 22, 0.24) !important;
 }
+
+/* ===== COLORFUL ADMIN DASHBOARD REFRESH ===== */
+.admin-dashboard-colorful {
+  color: #102033;
+  background:
+    radial-gradient(circle at 6% 10%, rgba(251, 146, 60, 0.28), transparent 26%),
+    radial-gradient(circle at 95% 6%, rgba(14, 165, 233, 0.24), transparent 28%),
+    radial-gradient(circle at 72% 92%, rgba(16, 185, 129, 0.18), transparent 32%),
+    linear-gradient(135deg, #fff7ed 0%, #eff6ff 48%, #ecfeff 100%) !important;
+}
+
+.admin-dashboard-colorful > aside {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 54%, rgba(8, 47, 73, 0.96) 100%) !important;
+  border-color: rgba(251, 146, 60, 0.28) !important;
+  color: #e5edf7 !important;
+  box-shadow: 14px 0 44px rgba(15, 23, 42, 0.16) !important;
+}
+
+.admin-dashboard-colorful > aside > div:first-child {
+  background:
+    linear-gradient(135deg, rgba(249, 115, 22, 0.24), rgba(14, 165, 233, 0.18)) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-dashboard-colorful > aside p,
+.admin-dashboard-colorful > aside span {
+  color: inherit;
+}
+
+.admin-dashboard-colorful > aside p:first-child {
+  color: #fed7aa !important;
+  -webkit-text-fill-color: #fed7aa;
+}
+
+.admin-dashboard-colorful > aside .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.admin-dashboard-colorful > aside a {
+  color: #cbd5e1 !important;
+}
+
+.admin-dashboard-colorful > aside a:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff7ed !important;
+}
+
+.admin-dashboard-colorful > aside a[aria-current="page"] {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.22), rgba(14, 165, 233, 0.14)) !important;
+  border-left-color: #fb923c !important;
+  color: #fff7ed !important;
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.18) !important;
+}
+
+.admin-dashboard-colorful > aside button {
+  color: #fecaca !important;
+}
+
+.admin-dashboard-colorful > aside button:hover {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #fff1f2 !important;
+}
+
+.admin-dashboard-colorful > div {
+  background:
+    radial-gradient(circle at 14% 4%, rgba(251, 146, 60, 0.18), transparent 26%),
+    radial-gradient(circle at 92% 20%, rgba(14, 165, 233, 0.18), transparent 32%),
+    linear-gradient(135deg, rgba(255, 247, 237, 0.86), rgba(240, 249, 255, 0.9) 48%, rgba(236, 254, 255, 0.86)) !important;
+}
+
+.admin-dashboard-colorful header {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 237, 0.84) 46%, rgba(236, 254, 255, 0.9)) !important;
+  border-color: rgba(251, 146, 60, 0.2) !important;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08) !important;
+}
+
+.admin-dashboard-colorful main > div > header,
+.admin-dashboard-colorful main section,
+.admin-dashboard-colorful main article,
+.admin-dashboard-colorful main [class*="bg-white"],
+.admin-dashboard-colorful main [class*="bg-slate-50"] {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 247, 237, 0.76) 48%, rgba(240, 249, 255, 0.9) 100%) !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.08) !important;
+}
+
+.admin-dashboard-colorful main table,
+.admin-dashboard-colorful main tbody {
+  background: rgba(255, 255, 255, 0.78) !important;
+}
+
+.admin-dashboard-colorful main thead {
+  background: linear-gradient(135deg, #fff7ed, #ecfeff) !important;
+}
+
+.admin-dashboard-colorful main tr:hover {
+  background: rgba(255, 247, 237, 0.74) !important;
+}
+
+.admin-dashboard-colorful main input,
+.admin-dashboard-colorful main select,
+.admin-dashboard-colorful main textarea {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(14, 165, 233, 0.26) !important;
+  color: #0f172a !important;
+}
+
+.admin-dashboard-colorful main input:focus,
+.admin-dashboard-colorful main select:focus,
+.admin-dashboard-colorful main textarea:focus {
+  border-color: #fb923c !important;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.14) !important;
+}
+
+.admin-dashboard-colorful main button[class*="bg-white"],
+.admin-dashboard-colorful main a[class*="bg-white"] {
+  background: linear-gradient(135deg, #ffffff, #fff7ed) !important;
+  border-color: rgba(251, 146, 60, 0.28) !important;
+}
+
+.admin-dashboard-colorful main .bg-slate-100,
+.admin-dashboard-colorful main [class*="bg-slate-100"] {
+  background: rgba(224, 242, 254, 0.72) !important;
+}
