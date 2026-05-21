@@ -241,7 +241,7 @@ export default function UserDashboard() {
   }, [location.state]);
 
   useEffect(() => {
-    if (activeMenu !== 'account' || !queueEventId || !Number.isFinite(queueEventId)) {
+    if (!queueEventId || !Number.isFinite(queueEventId)) {
       setQueueSlotSecondsLeft(null);
       return;
     }
@@ -283,7 +283,7 @@ export default function UserDashboard() {
       window.clearInterval(heartbeatTimer);
       window.clearInterval(countdownTimer);
     };
-  }, [activeMenu, queueEventId]);
+  }, [queueEventId]);
 
   useEffect(() => {
     setPendingReservations(getPendingReservations());
