@@ -5,6 +5,7 @@ import com.ticketrush.features.order.dto.FlashSaleOrderRequest;
 import com.ticketrush.features.order.dto.QueueStatusResponse;
 import com.ticketrush.features.user.entity.User;
 import com.ticketrush.features.order.service.FlashSaleOrderService;
+import com.ticketrush.features.order.service.VirtualQueueService;
 import com.ticketrush.features.user.service.UserService;
 import com.ticketrush.common.util.JwtUtil;
 import jakarta.validation.Valid;
@@ -23,11 +24,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class FlashSaleOrderController {
 
     private final FlashSaleOrderService flashSaleOrderService;
+    private final VirtualQueueService virtualQueueService;
     private final JwtUtil jwtUtil;
     private final UserService userService;
 
-    public FlashSaleOrderController(FlashSaleOrderService flashSaleOrderService, JwtUtil jwtUtil, UserService userService) {
+    public FlashSaleOrderController(FlashSaleOrderService flashSaleOrderService, 
+                                   VirtualQueueService virtualQueueService,
+                                   JwtUtil jwtUtil, 
+                                   UserService userService) {
         this.flashSaleOrderService = flashSaleOrderService;
+        this.virtualQueueService = virtualQueueService;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
     }
@@ -35,11 +41,14 @@ public class FlashSaleOrderController {
     @PostMapping
     public ResponseEntity<?> submitOrder(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestHeader(value = "X-Queue-Token", required = false) String queueToken,
             @Valid @RequestBody FlashSaleOrderRequest request
     ) {
         try {
             User user = resolveUser(authorizationHeader);
+            virtualQueueService.assertAdmittedAndRefresh(request.getEventId(), user.getId(), queueToken);
             FlashSaleOrderAcceptedResponse response = flashSaleOrderService.submitOrder(user, request);
+            virtualQueueService.releaseAdmission(request.getEventId(), user.getId(), queueToken);
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
