@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getAuthSession } from '../../auth/utils/authStorage';
-import { createPendingReservation } from '../../order-payment/services/pendingReservationService';
+import { createPendingReservation, getPendingReservations } from '../../order-payment/services/pendingReservationService';
 import { holdSeatsForPayment } from '../../order-payment/services/paymentService';
 import { getMyProfile } from '../../user/services/userProfileService';
 import { connectSeatRealtime, type SeatRealtimeUpdate } from '../../order-payment/realtime/realtimeSeatClient';
@@ -31,6 +31,7 @@ type SeatGroup = {
 const DEFAULT_HOLD_RESERVATION_MINUTES = 10;
 const HEARTBEAT_INTERVAL_MS = 30000;
 const SEAT_MAP_REFRESH_INTERVAL_MS = 5000;
+const MAX_HOLD_SEATS_PER_REQUEST = 6;
 
 function formatVnd(value: number): string {
   return `${value.toLocaleString('vi-VN')}đ`;
@@ -79,6 +80,7 @@ export default function EventSeatBookingPage() {
   const [seatLoading, setSeatLoading] = useState(true);
   const [error, setError] = useState('');
   const [seatError, setSeatError] = useState('');
+  const [holdActionError, setHoldActionError] = useState('');
   const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
   const [profileChecking, setProfileChecking] = useState(false);
   const [profileEligible, setProfileEligible] = useState(false);
@@ -123,6 +125,7 @@ export default function EventSeatBookingPage() {
         const seats = await getPublicSeatMap(id);
         setSeatMap(seats);
         setSeatError('');
+        setHoldActionError('');
       } catch (err) {
         if (err instanceof Error) {
           setSeatError(err.message || 'Không thể tải sơ đồ ghế');
@@ -389,6 +392,9 @@ export default function EventSeatBookingPage() {
       return;
     }
 
+    if (seatError) setSeatError('');
+    if (holdActionError) setHoldActionError('');
+
     setSelectedSeatIds(prev => {
       if (prev.includes(seat.id)) {
         return prev.filter(item => item !== seat.id);
@@ -417,6 +423,17 @@ export default function EventSeatBookingPage() {
       return;
     }
 
+    const pendingReservations = getPendingReservations();
+    if (pendingReservations.length > 0) {
+      setHoldActionError('Bạn đang có giữ chỗ cũ chưa hủy hoặc chưa thanh toán. Vui lòng xử lý giữ chỗ cũ trước.');
+      return;
+    }
+
+
+    if (selectedSeatIds.length > MAX_HOLD_SEATS_PER_REQUEST) {
+      setHoldActionError(`Bạn chỉ được giữ tối đa ${MAX_HOLD_SEATS_PER_REQUEST} ghế trong một lần.`);
+      return;
+    }
     try {
       const holdResult = await holdSeatsForPayment(id, selectedSeatIds, queueToken);
       const selectedSeatCodes = selectedSeats.map(seat => seat.seatCode);
@@ -435,6 +452,7 @@ export default function EventSeatBookingPage() {
       });
 
       setSeatError('');
+      setHoldActionError('');
       setSelectedSeatIds([]);
 
       navigate('/user', {
@@ -444,9 +462,9 @@ export default function EventSeatBookingPage() {
       });
     } catch (err) {
       if (err instanceof Error) {
-        setSeatError(err.message || 'Không thể giữ ghế. Vui lòng thử lại.');
+        setHoldActionError(err.message || 'Không thể giữ ghế. Vui lòng thử lại.');
       } else {
-        setSeatError('Không thể giữ ghế. Vui lòng thử lại.');
+        setHoldActionError('Không thể giữ ghế. Vui lòng thử lại.');
       }
 
       try {
@@ -594,6 +612,9 @@ export default function EventSeatBookingPage() {
                             Giữ chỗ {holdDurationLabel}
                           </button>
                         </div>
+                        {holdActionError ? (
+                          <p className="seat-booking-feedback seat-booking-error hold-action-error">{holdActionError}</p>
+                        ) : null}
                       </div>
                     )}
                   </>

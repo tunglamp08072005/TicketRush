@@ -294,6 +294,13 @@
   color: #dc2626;
 }
 
+.hold-action-error {
+  margin-top: -2px;
+  margin-left: auto;
+  width: fit-content;
+  max-width: 100%;
+}
+
 @media (max-width: 860px) {
   .seat-booking-overlay {
     padding: 14px;

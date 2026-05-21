@@ -15,6 +15,7 @@ import jakarta.persistence.QueryHint;
 import java.util.List;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public interface SeatRepository extends JpaRepository<Seat, Long> {
 
@@ -86,6 +87,21 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             order by z.displayOrder asc, s.rowLabel asc, s.seatNumber asc
             """)
     List<Seat> findSeatMapByEventId(@Param("eventId") Long eventId);
+
+    @Query("""
+            select s.id
+            from Seat s
+            where s.event.id = :eventId
+                and s.status = com.ticketrush.features.event.entity.SeatStatus.LOCKED
+                and s.lockedByUserId = :userId
+                and (s.lockedUntil is null or s.lockedUntil > :now)
+            order by s.id asc
+            """)
+    List<Long> findActiveLockedSeatIdsByEventIdAndUserId(
+            @Param("eventId") Long eventId,
+            @Param("userId") Long userId,
+            @Param("now") LocalDateTime now
+    );
 
             @Query("""
                 select s.event.id as eventId,
