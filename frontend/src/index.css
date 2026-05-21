@@ -940,6 +940,50 @@ img:not([src]) {
   background: rgba(224, 242, 254, 0.72) !important;
 }
 
+.admin-dashboard-colorful main section,
+.admin-dashboard-colorful main article,
+.admin-dashboard-colorful main [class*="rounded-lg"],
+.admin-dashboard-colorful main [class*="rounded-xl"],
+.admin-dashboard-colorful main [class*="rounded-2xl"],
+.admin-dashboard-colorful main [class*="rounded-3xl"],
+.admin-dashboard-colorful main [class*="overflow-hidden"][class*="border"],
+.admin-dashboard-colorful main [class*="bg-white"],
+.admin-dashboard-colorful main [class*="bg-slate-50"],
+.admin-dashboard-colorful main [class*="bg-slate-100"] {
+  border-radius: 24px !important;
+}
+
+.admin-dashboard-colorful main table {
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.admin-dashboard-colorful main > div > header,
+.admin-dashboard-colorful main > div > section:first-child,
+.admin-dashboard-colorful main > section:first-child {
+  overflow: hidden;
+  border-radius: 28px !important;
+  padding: 1.5rem !important;
+}
+
+.admin-dashboard-colorful main h1 {
+  font-size: clamp(1.75rem, 2.2vw, 2.35rem) !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.04em;
+}
+
+.admin-dashboard-colorful main > div > header h1,
+.admin-dashboard-colorful main > div > section:first-child h1,
+.admin-dashboard-colorful main > section:first-child h1 {
+  margin: 0 !important;
+}
+
+.admin-dashboard-colorful main > div > header p,
+.admin-dashboard-colorful main > div > section:first-child p,
+.admin-dashboard-colorful main > section:first-child p {
+  margin-top: 0.5rem !important;
+}
+
 /* Final readability pass for the user dashboard */
 .user-dashboard-light aside nav button,
 .user-dashboard-light aside nav button span,
