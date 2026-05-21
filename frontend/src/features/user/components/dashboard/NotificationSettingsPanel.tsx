@@ -205,7 +205,7 @@ export default function NotificationSettingsPanel() {
   }
 
   return (
-    <section className="mx-auto max-w-4xl">
+    <section className="user-soft-panel mx-auto max-w-4xl">
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-[28px] font-extrabold tracking-tight text-white sm:text-3xl">

@@ -660,7 +660,7 @@ export default function UserDashboard() {
 
     if (activeMenu === 'payments') {
       return (
-        <section>
+        <section className="user-soft-panel">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">Thanh toán ({pendingReservations.length} đơn giữ chỗ)</h2>
           </div>

@@ -37,13 +37,33 @@
 
 .user-event-shell .waiting-room-page {
   display: grid;
-  place-items: start center;
-  padding: 0;
+  min-height: calc(100vh - 4rem);
+  place-items: center;
+  padding: 1rem;
 }
 
 .user-event-shell .waiting-room-card {
   width: min(840px, 100%);
   margin: 0 auto;
+}
+
+.user-event-shell .event-detail-card,
+.user-event-shell .seat-booking-card,
+.user-event-shell .event-payment-card,
+.user-event-shell .waiting-room-card,
+.user-event-shell [class*="bg-white"],
+.user-event-shell [class*="bg-slate-50"] {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 247, 237, 0.8) 48%, rgba(236, 254, 255, 0.9) 100%) !important;
+  border-color: rgba(251, 146, 60, 0.22) !important;
+}
+
+.user-event-shell .waiting-room-card {
+  background:
+    radial-gradient(circle at top left, rgba(251, 146, 60, 0.18), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.18), transparent 36%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(8, 47, 73, 0.94)) !important;
+  border-color: rgba(251, 191, 36, 0.26) !important;
 }
 
 @media (max-width: 900px) {
