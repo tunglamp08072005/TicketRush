@@ -146,6 +146,34 @@ export async function deleteAdminEvent(id: number): Promise<void> {
   }
 }
 
+export async function archiveAdminEvent(id: number): Promise<AdminEvent> {
+  const response = await fetch(`${ADMIN_EVENTS_API}/${id}/archive`, {
+    method: 'POST',
+    headers: buildAdminHeaders(false),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Cannot archive event');
+  }
+
+  return await response.json();
+}
+
+export async function publicAdminEvent(id: number): Promise<AdminEvent> {
+  const response = await fetch(`${ADMIN_EVENTS_API}/${id}/public`, {
+    method: 'POST',
+    headers: buildAdminHeaders(false),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Cannot public event');
+  }
+
+  return await response.json();
+}
+
 export async function uploadEventPoster(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);

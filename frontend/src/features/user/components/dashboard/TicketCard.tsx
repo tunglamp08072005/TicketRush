@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TicketItem } from '../../data/dashboardMockData';
 
@@ -83,7 +83,7 @@ function MiniQrVisual({ value }: { value: string }) {
   }, [value]);
 
   if (!qrDataUrl) {
-    return <div className="h-[120px] w-[120px] animate-pulse rounded-lg bg-gray-800" />;
+    return <div className="h-[120px] w-[120px] animate-pulse rounded-lg bg-orange-100" />;
   }
 
   return <img src={qrDataUrl} alt="Mã QR check-in" className="h-[120px] w-[120px] rounded-lg border border-gray-200 bg-white p-1" />;
@@ -111,7 +111,7 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: '#111827',
+        backgroundColor: '#fff7ed',
       });
 
       const link = document.createElement('a');
@@ -137,7 +137,7 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: '#111827',
+        backgroundColor: '#fff7ed',
       });
 
       const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -159,68 +159,65 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
     <div>
       <article
         ref={cardRef}
-        className={`card-3d relative overflow-hidden rounded-2xl border p-5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl transition ${
+        className={`card-3d relative overflow-hidden rounded-2xl border p-5 shadow-[0_18px_44px_rgba(15,23,42,0.12)] backdrop-blur-xl transition ${
           isHistory
-            ? 'border-gray-700/70 bg-gradient-to-br from-gray-900/70 to-gray-950/70 opacity-70 grayscale'
-            : 'border-white/10 bg-gradient-to-br from-gray-900/95 to-gray-950/95'
+            ? 'border-slate-200/80 bg-gradient-to-br from-slate-100 to-slate-200 opacity-75 grayscale'
+            : 'border-orange-200/80 bg-gradient-to-br from-white via-orange-50 to-sky-50'
         }`}
       >
-        {/* Gradient accent bar */}
         <div className={`absolute left-0 top-0 h-full w-1 ${isHistory ? 'bg-gray-600' : 'bg-gradient-to-b from-purple-500 via-pink-500 to-orange-500'}`} />
-        {/* Subtle glow overlay */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
         {isHistory && (
-          <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-gray-500/70 bg-gray-950/85 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-gray-200 shadow-lg">
+          <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-slate-300 bg-white/90 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-slate-700 shadow-lg">
             {historyLabel}
           </div>
         )}
+
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Ticket ID: {ticket.id}</p>
-            <p className="mt-1 text-sm text-gray-300" title={ticket.ticketCode ?? ticket.id}>
-              Mã vé: <span className="font-semibold text-white">{displayTicketCode}</span>
+            <p className="text-[11px] uppercase tracking-[0.15em] text-slate-500">Ticket ID: {ticket.id}</p>
+            <p className="mt-1 text-sm text-slate-600" title={ticket.ticketCode ?? ticket.id}>
+              Mã vé: <span className="font-semibold text-slate-900">{displayTicketCode}</span>
             </p>
-            <h3 className="mt-1 text-lg font-semibold text-white">{ticket.eventName}</h3>
-            <p className="mt-2 rounded-md border border-gray-700 bg-gray-950/60 px-2 py-1 text-sm font-bold text-white">{ticket.eventDate}</p>
-            <p className="mt-1 text-sm text-gray-200">{ticket.venue}</p>
-            <p className="mt-2 text-base font-bold text-orange-300">{ticket.seat}</p>
-            <p className="mt-1 text-base font-semibold text-emerald-300">Hạng vé: {ticket.ticketTier ?? 'Standard'}</p>
+            <h3 className="mt-1 text-lg font-semibold text-slate-900">{ticket.eventName}</h3>
+            <p className="mt-2 rounded-md border border-orange-200 bg-orange-100/80 px-2 py-1 text-sm font-bold text-slate-900">{ticket.eventDate}</p>
+            <p className="mt-1 text-sm text-slate-700">{ticket.venue}</p>
+            <p className="mt-2 text-base font-bold text-orange-800">{ticket.seat}</p>
+            <p className="mt-1 text-base font-semibold text-emerald-700">Hạng vé: {ticket.ticketTier ?? 'Standard'}</p>
           </div>
 
-          <div className="shrink-0 rounded-xl border border-gray-800 bg-black/40 p-2">
+          <div className="shrink-0 rounded-xl border border-orange-200 bg-white/90 p-2 shadow-[0_12px_28px_rgba(15,23,42,0.12)]">
             <div className="mb-2 flex items-center justify-center">
               <MiniQrVisual value={ticket.qrValue ?? `${ticket.id}|${ticket.eventName}`} />
             </div>
           </div>
         </div>
 
-        <div className="mb-3 grid gap-2 rounded-xl border border-gray-800 bg-gray-950/45 p-3 text-xs text-gray-300 sm:grid-cols-2">
+        <div className="mb-3 grid gap-2 rounded-xl border border-sky-200 bg-sky-50/80 p-3 text-xs text-slate-600 sm:grid-cols-2">
           <p>
-            Người đặt: <span className="font-semibold text-white">{ticket.buyerName ?? 'Chưa cập nhật'}</span>
+            Người đặt: <span className="font-semibold text-slate-900">{ticket.buyerName ?? 'Chưa cập nhật'}</span>
           </p>
           {displayEmail && (
             <p>
-              Email: <span className="font-semibold text-white">{displayEmail}</span>
+              Email: <span className="font-semibold text-slate-900">{displayEmail}</span>
             </p>
           )}
           {displayPhone && (
             <p>
-              SĐT: <span className="font-semibold text-white">{displayPhone}</span>
+              SĐT: <span className="font-semibold text-slate-900">{displayPhone}</span>
             </p>
           )}
           <p>
             Check-in:{' '}
-            <span className="font-semibold text-white">
-              <span className="mr-1" aria-hidden="true">
-                ⚠️
-              </span>
+            <span className="font-semibold text-slate-900">
+              <span className="mr-1" aria-hidden="true">⚠️</span>
               {ticket.checkInInstruction ?? 'Đến cổng check-in đúng giờ quy định.'}
             </span>
           </p>
         </div>
 
         {ticket.refundStatusMessage && (
-          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-950/35 p-3 text-sm leading-6 text-red-100">
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
             <p>{ticket.refundStatusMessage}</p>
             {ticket.lifecycleStatus === 'cancelled' && (
               <button
@@ -234,7 +231,7 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
                     },
                   });
                 }}
-                className="mt-3 rounded-lg border border-red-300/40 bg-red-500/20 px-3 py-2 text-xs font-bold text-red-100 transition hover:bg-red-500/30"
+                className="mt-3 rounded-lg border border-red-300/40 bg-red-500/20 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-500/30"
               >
                 Yêu cầu hoàn tiền ngay
               </button>
@@ -243,8 +240,8 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
         )}
 
         {terms.length > 0 && (
-          <div className="mb-3 rounded-xl border border-gray-800 bg-gray-950/45 p-3 text-xs text-gray-300">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400">Quy định</p>
+          <div className="mb-3 rounded-xl border border-orange-200 bg-orange-50/80 p-3 text-xs text-slate-700">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-orange-700">Quy định</p>
             <ul className="space-y-1">
               {terms.map(term => (
                 <li key={term}>- {term}</li>
@@ -253,7 +250,7 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
           </div>
         )}
 
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-orange-100">
           <div
             className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500"
             style={{ width: `${ticket.progress}%` }}
@@ -268,7 +265,7 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
             void exportCardAsImage();
           }}
           disabled={exportingImage || exportingPdf}
-          className="rounded-lg border border-orange-500/70 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-200 transition hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+          className="rounded-lg border border-orange-500/70 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {exportingImage ? 'Đang xuất ảnh...' : 'Lưu vào ảnh'}
         </button>
@@ -278,7 +275,7 @@ export default function TicketCard({ ticket, isHistory = false, historyLabel = '
             void exportCardAsPdf();
           }}
           disabled={exportingImage || exportingPdf}
-          className="rounded-lg border border-gray-600 px-3 py-2 text-xs font-semibold text-gray-100 transition hover:border-gray-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+          className="rounded-lg border border-slate-300 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {exportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}
         </button>

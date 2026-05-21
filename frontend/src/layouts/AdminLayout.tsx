@@ -40,8 +40,8 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-800 md:h-screen md:flex-row md:overflow-hidden">
-      <aside className="flex w-full flex-col border-b border-slate-200 bg-white shadow-sm md:w-72 md:border-b-0 md:border-r">
+    <div className="admin-dashboard-colorful flex min-h-screen flex-col bg-slate-100 text-slate-800 md:h-screen md:flex-row md:overflow-hidden">
+      <aside className="flex w-full flex-col border-b border-slate-200 bg-white shadow-sm md:sticky md:top-0 md:h-screen md:w-72 md:shrink-0 md:border-b-0 md:border-r">
         <div className="border-b border-slate-200 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-5">
           <p className="text-xl font-black tracking-[0.08em] text-orange-600">TICKETRUSH ADMIN</p>
           <p className="mt-1 text-xs text-slate-500">Bảng điều khiển quản trị</p>
@@ -75,7 +75,7 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      <div className="relative flex flex-1 flex-col bg-slate-100">
+      <div className="relative flex min-w-0 flex-1 flex-col bg-slate-100 md:h-screen">
         <div className="pointer-events-none absolute -top-24 left-10 h-72 w-72 rounded-full bg-orange-200/40 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-10 h-72 w-72 rounded-full bg-sky-200/35 blur-3xl" />
 

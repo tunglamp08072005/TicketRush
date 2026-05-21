@@ -16,6 +16,9 @@ export interface PaymentOrder {
   seatCodes: string[];
   paymentNote: string | null;
   paymentProofImageUrl: string | null;
+  refundBankName: string | null;
+  refundBankAccountNumber: string | null;
+  refundBankAccountHolder: string | null;
   paymentRequestedAt: string | null;
   paymentReviewedAt: string | null;
   createdAt: string;
@@ -265,6 +268,24 @@ export async function confirmRefund(orderId: number, note?: string): Promise<Pay
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || 'Không thể xác nhận hoàn tiền');
+  }
+
+  return await response.json();
+}
+
+export async function submitRefundBankInfo(
+  orderId: number,
+  payload: { bankName: string; bankAccountNumber: string; bankAccountHolder: string }
+): Promise<PaymentOrder> {
+  const response = await fetch(`http://localhost:8080/api/user/payments/${orderId}/refund-bank-info`, {
+    method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Không thể cập nhật thông tin nhận hoàn tiền');
   }
 
   return await response.json();

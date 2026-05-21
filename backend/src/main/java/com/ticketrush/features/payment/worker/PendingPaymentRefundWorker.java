@@ -14,8 +14,8 @@ public class PendingPaymentRefundWorker {
 
     private final PaymentService paymentService;
 
-    @Value("${app.payment.pending-review-expire-hours:6}")
-    private int pendingReviewExpireHours;
+    @Value("${app.payment.pending-review-lock-before-event-hours:1}")
+    private int lockBeforeEventHours;
 
     public PendingPaymentRefundWorker(PaymentService paymentService) {
         this.paymentService = paymentService;
@@ -23,7 +23,7 @@ public class PendingPaymentRefundWorker {
 
     @Scheduled(fixedDelayString = "${app.payment.pending-refund-scan-interval-ms:60000}")
     public void markExpiredPendingRefundOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(Math.max(0, pendingReviewExpireHours));
+        LocalDateTime cutoff = LocalDateTime.now().plusHours(Math.max(0, lockBeforeEventHours));
         int updated = paymentService.markExpiredPendingRefundOrders(cutoff);
         if (updated > 0) {
             log.warn("Marked {} pending payment orders as EXPIRED_PENDING_REFUND", updated);

@@ -71,6 +71,15 @@ public class TicketOrder {
     @Column(name = "payment_proof_image_url", length = 1000)
     private String paymentProofImageUrl;
 
+    @Column(name = "refund_bank_name", length = 150)
+    private String refundBankName;
+
+    @Column(name = "refund_bank_account_number", length = 50)
+    private String refundBankAccountNumber;
+
+    @Column(name = "refund_bank_account_holder", length = 150)
+    private String refundBankAccountHolder;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -183,6 +192,30 @@ public class TicketOrder {
 
     public void setPaymentProofImageUrl(String paymentProofImageUrl) {
         this.paymentProofImageUrl = paymentProofImageUrl;
+    }
+
+    public String getRefundBankName() {
+        return refundBankName;
+    }
+
+    public void setRefundBankName(String refundBankName) {
+        this.refundBankName = refundBankName;
+    }
+
+    public String getRefundBankAccountNumber() {
+        return refundBankAccountNumber;
+    }
+
+    public void setRefundBankAccountNumber(String refundBankAccountNumber) {
+        this.refundBankAccountNumber = refundBankAccountNumber;
+    }
+
+    public String getRefundBankAccountHolder() {
+        return refundBankAccountHolder;
+    }
+
+    public void setRefundBankAccountHolder(String refundBankAccountHolder) {
+        this.refundBankAccountHolder = refundBankAccountHolder;
     }
 
     public LocalDateTime getCreatedAt() {

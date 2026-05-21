@@ -118,6 +118,44 @@ public class EventAdminController {
         }
     }
 
+    @PostMapping("/{id}/archive")
+    public ResponseEntity<?> archiveEvent(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
+        try {
+            EventDto updated = eventService.setEventArchived(id, true);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body("Cannot archive event: " + ex.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/public")
+    public ResponseEntity<?> publicEvent(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id
+    ) {
+        if (!isAdminRequest(authorizationHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin can access this endpoint");
+        }
+
+        try {
+            EventDto updated = eventService.setEventArchived(id, false);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body("Cannot public event: " + ex.getMessage());
+        }
+    }
+
     @PostMapping("/upload-poster")
     public ResponseEntity<?> uploadPoster(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,

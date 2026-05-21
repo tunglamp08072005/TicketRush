@@ -345,7 +345,7 @@ export default function EventExplorerSection({
     : DATE_LABELS[selectedDateOption];
 
   return (
-    <section className="w-full">
+    <section className="user-events-panel w-full">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <h2 className="text-[28px] font-extrabold tracking-tight text-white sm:text-3xl">Danh sách sự kiện</h2>
 

@@ -148,7 +148,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
         User userByEmailAsUsername = userService.findByUsername(normalizedEmail);
         boolean emailUsernameAvailable = userByEmailAsUsername == null
-                || (user.getId() != null && user.getId().equals(userByEmailAsUsername.getId()));
+                || (user.getId() != null && user.getId().equals(userByEmailAsUsername.getId()));    
 
         if (!emailUsernameAvailable) {
             return user;

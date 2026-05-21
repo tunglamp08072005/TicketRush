@@ -53,6 +53,21 @@ public interface TicketOrderRepository extends JpaRepository<TicketOrder, Long> 
         """)
     List<TicketOrder> findAllByPaymentStatusWithDetails(@Param("paymentStatus") PaymentStatus paymentStatus);
 
+    @Query("""
+        select distinct o
+        from TicketOrder o
+        left join fetch o.event
+        left join fetch o.user
+        left join fetch o.items i
+        left join fetch i.seat s
+        where o.paymentStatus = com.ticketrush.features.payment.entity.PaymentStatus.EXPIRED_PENDING_REFUND
+            and o.refundBankName is not null
+            and o.refundBankAccountNumber is not null
+            and o.refundBankAccountHolder is not null
+        order by o.createdAt desc
+        """)
+    List<TicketOrder> findAllExpiredPendingRefundReadyForTransferWithDetails();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select distinct o

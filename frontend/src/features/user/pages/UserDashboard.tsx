@@ -18,7 +18,7 @@ import {
   type DashboardMenuKey,
 } from '../data/dashboardMockData';
 import { getPublicEventDetail, searchPublicEvents } from '../../events/services/eventService';
-import { fetchMyPayments, releaseHeldSeatsForPayment, type PaymentOrder } from '../../order-payment/services/paymentService';
+import { fetchMyPayments, releaseHeldSeatsForPayment, submitRefundBankInfo, type PaymentOrder } from '../../order-payment/services/paymentService';
 import {
   getPendingReservations,
   removePendingReservation,
@@ -35,6 +35,12 @@ const PROFILE_HEARTBEAT_INTERVAL_MS = 30000;
 
 const PAYMENT_STATUS_NOTICE_STORAGE_KEY = 'ticketrush.paymentNotice.dismissedOrderIds';
 const DISMISSED_NOTIFICATIONS_KEY = 'ticketrush.notifications.dismissedIds';
+
+interface RefundBankFormState {
+  bankName: string;
+  bankAccountNumber: string;
+  bankAccountHolder: string;
+}
 
 function formatTicketDate(value: string | null): string {
   if (!value) {
@@ -184,6 +190,7 @@ export default function UserDashboard() {
   const [success, setSuccess] = useState('');
   const [ticketsError, setTicketsError] = useState('');
   const [paymentsError, setPaymentsError] = useState('');
+  const [paymentsSuccess, setPaymentsSuccess] = useState('');
   const [queueEventId, setQueueEventId] = useState<number | null>(null);
   const [queueReturnPath, setQueueReturnPath] = useState('');
   const [queueSlotSecondsLeft, setQueueSlotSecondsLeft] = useState<number | null>(null);
@@ -193,6 +200,9 @@ export default function UserDashboard() {
   const [pendingReservations, setPendingReservations] = useState<PendingReservation[]>([]);
   const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
   const [unreadRejectedOrderIds, setUnreadRejectedOrderIds] = useState<number[]>([]);
+  const [processingRefundBankOrderId, setProcessingRefundBankOrderId] = useState<number | null>(null);
+  const [refundBankForms, setRefundBankForms] = useState<Record<number, RefundBankFormState>>({});
+  const [activePaymentPanel, setActivePaymentPanel] = useState<'history' | 'refunds'>('history');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [systemNotificationEnabled, setSystemNotificationEnabled] = useState(true);
 
@@ -231,7 +241,7 @@ export default function UserDashboard() {
   }, [location.state]);
 
   useEffect(() => {
-    if (activeMenu !== 'account' || !queueEventId || !Number.isFinite(queueEventId)) {
+    if (!queueEventId || !Number.isFinite(queueEventId)) {
       setQueueSlotSecondsLeft(null);
       return;
     }
@@ -273,7 +283,7 @@ export default function UserDashboard() {
       window.clearInterval(heartbeatTimer);
       window.clearInterval(countdownTimer);
     };
-  }, [activeMenu, queueEventId]);
+  }, [queueEventId]);
 
   useEffect(() => {
     setPendingReservations(getPendingReservations());
@@ -431,8 +441,12 @@ export default function UserDashboard() {
     .filter(order => order.paymentStatus === 'REJECTED')
     .sort((left, right) => new Date(right.paymentReviewedAt || right.createdAt).getTime() - new Date(left.paymentReviewedAt || left.createdAt).getTime());
 
+  const refundOrders = paymentOrders
+    .filter(order => order.paymentStatus === 'EXPIRED_PENDING_REFUND' || order.paymentStatus === 'REFUNDED')
+    .sort((left, right) => new Date(right.paymentReviewedAt || right.createdAt).getTime() - new Date(left.paymentReviewedAt || left.createdAt).getTime());
+
   const paymentHistoryOrders = paymentOrders
-    .filter(order => order.paymentStatus === 'PENDING_REVIEW' || order.paymentStatus === 'APPROVED' || order.paymentStatus === 'REJECTED' || order.paymentStatus === 'EXPIRED_PENDING_REFUND' || order.paymentStatus === 'REFUNDED')
+    .filter(order => order.paymentStatus === 'PENDING_REVIEW' || order.paymentStatus === 'APPROVED' || order.paymentStatus === 'REJECTED')
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 
   const dismissRejectedNotifications = () => {
@@ -526,6 +540,63 @@ export default function UserDashboard() {
     }
   };
 
+  const getRefundBankForm = (order: PaymentOrder): RefundBankFormState => (
+    refundBankForms[order.orderId] ?? {
+      bankName: order.refundBankName ?? '',
+      bankAccountNumber: order.refundBankAccountNumber ?? '',
+      bankAccountHolder: order.refundBankAccountHolder ?? '',
+    }
+  );
+
+  const updateRefundBankForm = (order: PaymentOrder, field: keyof RefundBankFormState, value: string) => {
+    setRefundBankForms(current => ({
+      ...current,
+      [order.orderId]: {
+        ...(current[order.orderId] ?? {
+          bankName: order.refundBankName ?? '',
+          bankAccountNumber: order.refundBankAccountNumber ?? '',
+          bankAccountHolder: order.refundBankAccountHolder ?? '',
+        }),
+        [field]: value,
+      },
+    }));
+    setPaymentsError('');
+    setPaymentsSuccess('');
+  };
+
+  const handleSubmitRefundBankInfo = async (event: React.FormEvent, order: PaymentOrder) => {
+    event.preventDefault();
+
+    const form = getRefundBankForm(order);
+    const bankName = form.bankName.trim();
+    const bankAccountNumber = form.bankAccountNumber.trim();
+    const bankAccountHolder = form.bankAccountHolder.trim();
+
+    if (!bankName || !bankAccountNumber || !bankAccountHolder) {
+      setPaymentsError('Vui lòng nhập đầy đủ tên ngân hàng, số tài khoản và tên chủ tài khoản nhận hoàn tiền.');
+      setPaymentsSuccess('');
+      return;
+    }
+
+    try {
+      setProcessingRefundBankOrderId(order.orderId);
+      await submitRefundBankInfo(order.orderId, { bankName, bankAccountNumber, bankAccountHolder });
+      const orders = await fetchMyPayments();
+      setPaymentOrders(orders);
+      setPaymentsError('');
+      setPaymentsSuccess('Đã gửi thông tin nhận hoàn tiền. Admin sẽ xử lý trong thời gian sớm nhất.');
+    } catch (err) {
+      if (err instanceof Error) {
+        setPaymentsError(err.message || 'Không thể gửi thông tin nhận hoàn tiền');
+      } else {
+        setPaymentsError('Không thể gửi thông tin nhận hoàn tiền');
+      }
+      setPaymentsSuccess('');
+    } finally {
+      setProcessingRefundBankOrderId(null);
+    }
+  };
+
   const renderMainContent = () => {
     if (activeMenu === 'account') {
       return (
@@ -589,7 +660,7 @@ export default function UserDashboard() {
 
     if (activeMenu === 'payments') {
       return (
-        <section>
+        <section className="user-soft-panel">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">Thanh toán ({pendingReservations.length} đơn giữ chỗ)</h2>
           </div>
@@ -619,6 +690,12 @@ export default function UserDashboard() {
           {paymentsError && (
             <div className="mb-4 rounded-xl border border-yellow-500/35 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-200">
               {paymentsError}
+            </div>
+          )}
+
+          {paymentsSuccess && (
+            <div className="mb-4 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
+              {paymentsSuccess}
             </div>
           )}
 
@@ -692,58 +769,184 @@ export default function UserDashboard() {
           )}
 
           <div className="mt-6">
-            <h3 className="mb-3 text-xl font-bold text-white">Lịch sử thanh toán</h3>
+            <div className="inline-flex max-w-full rounded-2xl border border-white/10 bg-white/5 p-1 shadow-inner backdrop-blur-xl">
+              <button
+                type="button"
+                onClick={() => setActivePaymentPanel('history')}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  activePaymentPanel === 'history'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                Giao dịch ({paymentHistoryOrders.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePaymentPanel('refunds')}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  activePaymentPanel === 'refunds'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : refundOrders.length > 0
+                      ? 'text-red-200 hover:bg-red-500/10 hover:text-red-100'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                Hoàn tiền ({refundOrders.length})
+              </button>
+            </div>
 
-            {paymentHistoryOrders.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 px-4 py-8 text-center text-sm text-gray-300">
-                Chưa có giao dịch thanh toán nào được gửi lên hệ thống.
+            {activePaymentPanel === 'refunds' ? (
+              <div className="mt-4">
+                {refundOrders.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 px-4 py-8 text-center text-sm text-gray-300">
+                    Chưa có đơn nào cần hoàn tiền.
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {refundOrders.map(order => {
+                      const refundForm = getRefundBankForm(order);
+                      const hasRefundBankInfo = Boolean(order.refundBankName && order.refundBankAccountNumber && order.refundBankAccountHolder);
+                      const isRefunded = order.paymentStatus === 'REFUNDED';
+
+                      return (
+                        <article key={order.orderId} className="card-3d rounded-2xl border border-red-400/20 bg-red-500/10 p-4 backdrop-blur-xl">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.15em] text-red-200/70">Đơn hoàn tiền #{order.orderId}</p>
+                              <h4 className="mt-1 text-lg font-semibold text-white">{order.eventName}</h4>
+                              <p className="mt-1 text-sm text-red-100/85">Ghế: {order.seatCodes.join(', ') || 'Đang cập nhật'}</p>
+                              <p className="mt-1 text-sm font-semibold text-red-100">Số tiền hoàn: {order.totalAmount.toLocaleString('vi-VN')}đ</p>
+                            </div>
+
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${paymentStatusClass(order)}`}>
+                              {formatPaymentStatusLabel(order)}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 grid gap-2 text-sm text-red-100/85 md:grid-cols-2">
+                            <p>Gửi lúc: <span className="font-medium text-white">{formatTicketDate(order.paymentRequestedAt || order.createdAt)}</span></p>
+                            <p>Phản hồi lúc: <span className="font-medium text-white">{formatTicketDate(order.paymentReviewedAt)}</span></p>
+                          </div>
+
+                          <div className="mt-3 rounded-xl border border-red-300/20 bg-red-950/25 px-4 py-3 text-sm text-red-50">
+                            {isRefunded ? (
+                              <p>Đơn này đã được xác nhận hoàn tiền 100%.</p>
+                            ) : (
+                              <p>Đơn hàng quá hạn duyệt. Hệ thống sẽ hoàn tiền 100% sau khi nhận thông tin tài khoản từ bạn.</p>
+                            )}
+
+                            {hasRefundBankInfo ? (
+                              <p className="mt-2 text-red-50/90">
+                                Đã nhận thông tin tài khoản: {order.refundBankName} - {order.refundBankAccountNumber} ({order.refundBankAccountHolder}).
+                              </p>
+                            ) : !isRefunded ? (
+                              <form onSubmit={event => void handleSubmitRefundBankInfo(event, order)} className="mt-4 grid gap-3 md:grid-cols-3">
+                                <label className="block text-xs font-semibold text-red-50">
+                                  Tên ngân hàng
+                                  <input
+                                    value={refundForm.bankName}
+                                    onChange={event => updateRefundBankForm(order, 'bankName', event.target.value)}
+                                    placeholder="Ví dụ: MB Bank"
+                                    className="mt-1 w-full rounded-lg border border-red-200/30 bg-white/95 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-red-300"
+                                    disabled={processingRefundBankOrderId === order.orderId}
+                                  />
+                                </label>
+
+                                <label className="block text-xs font-semibold text-red-50">
+                                  Số tài khoản
+                                  <input
+                                    value={refundForm.bankAccountNumber}
+                                    onChange={event => updateRefundBankForm(order, 'bankAccountNumber', event.target.value)}
+                                    placeholder="Nhập số tài khoản"
+                                    className="mt-1 w-full rounded-lg border border-red-200/30 bg-white/95 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-red-300"
+                                    disabled={processingRefundBankOrderId === order.orderId}
+                                  />
+                                </label>
+
+                                <label className="block text-xs font-semibold text-red-50">
+                                  Tên chủ tài khoản
+                                  <input
+                                    value={refundForm.bankAccountHolder}
+                                    onChange={event => updateRefundBankForm(order, 'bankAccountHolder', event.target.value)}
+                                    placeholder="Nhập đúng tên trên tài khoản"
+                                    className="mt-1 w-full rounded-lg border border-red-200/30 bg-white/95 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-red-300"
+                                    disabled={processingRefundBankOrderId === order.orderId}
+                                  />
+                                </label>
+
+                                <div className="md:col-span-3">
+                                  <button
+                                    type="submit"
+                                    disabled={processingRefundBankOrderId === order.orderId}
+                                    className="rounded-lg border border-red-300 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                                  >
+                                    {processingRefundBankOrderId === order.orderId ? 'Đang gửi thông tin...' : 'Gửi thông tin nhận hoàn tiền'}
+                                  </button>
+                                </div>
+                              </form>
+                            ) : null}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="grid gap-4">
-                {paymentHistoryOrders.map(order => (
-                  <article key={order.orderId} className="card-3d rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Đơn thanh toán #{order.orderId}</p>
-                        <h4 className="mt-1 text-lg font-semibold text-white">{order.eventName}</h4>
-                        <p className="mt-1 text-sm text-gray-300">Ghế: {order.seatCodes.join(', ') || 'Đang cập nhật'}</p>
-                        <p className="mt-1 text-sm text-emerald-300">Tổng tiền: {order.totalAmount.toLocaleString('vi-VN')}đ</p>
-                      </div>
+              <div className="mt-4">
+                {paymentHistoryOrders.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/45 px-4 py-8 text-center text-sm text-gray-300">
+                    Chưa có giao dịch thanh toán nào được gửi lên hệ thống.
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {paymentHistoryOrders.map(order => (
+                      <article key={order.orderId} className="card-3d rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Đơn thanh toán #{order.orderId}</p>
+                            <h4 className="mt-1 text-lg font-semibold text-white">{order.eventName}</h4>
+                            <p className="mt-1 text-sm text-gray-300">Ghế: {order.seatCodes.join(', ') || 'Đang cập nhật'}</p>
+                            <p className="mt-1 text-sm text-emerald-300">Tổng tiền: {order.totalAmount.toLocaleString('vi-VN')}đ</p>
+                          </div>
 
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${paymentStatusClass(order)}`}>
-                        {formatPaymentStatusLabel(order)}
-                      </span>
-                    </div>
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${paymentStatusClass(order)}`}>
+                            {formatPaymentStatusLabel(order)}
+                          </span>
+                        </div>
 
-                    <div className="mt-3 grid gap-2 text-sm text-gray-300 md:grid-cols-2">
-                      <p>Gửi lúc: <span className="font-medium text-white">{formatTicketDate(order.paymentRequestedAt || order.createdAt)}</span></p>
-                      <p>Phản hồi lúc: <span className="font-medium text-white">{formatTicketDate(order.paymentReviewedAt)}</span></p>
-                    </div>
+                        <div className="mt-3 grid gap-2 text-sm text-gray-300 md:grid-cols-2">
+                          <p>Gửi lúc: <span className="font-medium text-white">{formatTicketDate(order.paymentRequestedAt || order.createdAt)}</span></p>
+                          <p>Phản hồi lúc: <span className="font-medium text-white">{formatTicketDate(order.paymentReviewedAt)}</span></p>
+                        </div>
 
-                    {order.paymentStatus === 'REJECTED' ? (
-                      <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                        <p className="font-semibold">Thanh toán bị từ chối.</p>
-                        <p className="mt-1">
-                          {order.paymentNote?.trim()
-                            ? `Lý do từ admin: ${order.paymentNote}`
-                            : 'Admin chưa để lại ghi chú. Bạn có thể liên hệ hỗ trợ hoặc thanh toán lại với minh chứng rõ hơn.'}
-                        </p>
-                      </div>
-                    ) : null}
+                        {order.paymentStatus === 'REJECTED' ? (
+                          <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                            <p className="font-semibold">Thanh toán bị từ chối.</p>
+                            <p className="mt-1">
+                              {order.paymentNote?.trim()
+                                ? `Lý do từ admin: ${order.paymentNote}`
+                                : 'Admin chưa để lại ghi chú. Bạn có thể liên hệ hỗ trợ hoặc thanh toán lại với minh chứng rõ hơn.'}
+                            </p>
+                          </div>
+                        ) : null}
 
-                    {order.paymentStatus === 'PENDING_REVIEW' ? (
-                      <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                        Đơn của bạn đã được gửi và đang chờ admin duyệt.
-                      </div>
-                    ) : null}
+                        {order.paymentStatus === 'PENDING_REVIEW' ? (
+                          <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                            Đơn của bạn đã được gửi và đang chờ admin duyệt. Đơn của bạn sẽ được duyệt trong vòng 1h, nếu sau thời gian đó mà chưa được duyệt xin hãy liên lạc với chúng tôi qua mục hỗ trợ.
+                          </div>
+                        ) : null}
 
-                    {order.paymentStatus === 'APPROVED' ? (
-                      <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-                        Thanh toán đã được duyệt. Vé của bạn đã sẵn sàng trong mục Vé của tôi.
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
+                        {order.paymentStatus === 'APPROVED' ? (
+                          <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                            Thanh toán đã được duyệt. Vé của bạn đã sẵn sàng trong mục Vé của tôi.
+                          </div>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -763,10 +966,10 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-gradient-to-br from-gray-950 via-[#0a0612] to-gray-950 font-['Inter'] text-white">
+    <div className="user-dashboard-light relative flex h-screen min-h-screen overflow-hidden bg-[#f6f8fc] font-['Inter'] text-slate-900">
       {/* Animated Background Effects */}
-      <div className="animated-bg" />
-      <div className="particles">
+      <div className="hidden" />
+      <div className="hidden">
         {[...Array(12)].map((_, i) => (
           <div key={i} className="particle" style={{
             left: `${5 + i * 8}%`,
@@ -779,9 +982,7 @@ export default function UserDashboard() {
         ))}
       </div>
       {/* Gradient orbs */}
-      <div className="pointer-events-none absolute -left-40 top-20 h-80 w-80 rounded-full bg-purple-600/20 blur-[100px]" />
-      <div className="pointer-events-none absolute -bottom-40 right-20 h-96 w-96 rounded-full bg-pink-600/15 blur-[120px]" />
-      <div className="pointer-events-none absolute left-1/3 top-1/2 h-64 w-64 rounded-full bg-cyan-500/10 blur-[80px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[linear-gradient(120deg,rgba(255,245,238,0.9),rgba(230,247,255,0.75),rgba(255,255,255,0))]" />
       <Sidebar
         menuItems={sidebarMenuItems}
         activeMenu={activeMenu}
@@ -795,7 +996,7 @@ export default function UserDashboard() {
         onLogout={handleLogout}
       />
 
-      <main className="relative flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="relative h-screen flex-1 overflow-y-auto p-5 lg:p-8">
         <DashboardHeader
           displayName={fullName.trim() || username || userMock.displayName}
           avatarUrl={avatarUrl}

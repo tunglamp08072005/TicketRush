@@ -20,6 +20,9 @@ public record PaymentOrderDto(
         List<String> seatCodes,
         String paymentNote,
         String paymentProofImageUrl,
+        String refundBankName,
+        String refundBankAccountNumber,
+        String refundBankAccountHolder,
         LocalDateTime paymentRequestedAt,
         LocalDateTime paymentReviewedAt,
         LocalDateTime createdAt

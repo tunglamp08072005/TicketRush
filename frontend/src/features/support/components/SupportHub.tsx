@@ -110,7 +110,7 @@ export default function SupportHub({ mode = 'public' }: SupportHubProps) {
   }
 
   return (
-    <section className={isDashboard ? 'text-white' : 'text-slate-100'}>
+    <section className={isDashboard ? 'support-hub support-hub-dashboard text-white' : 'support-hub text-slate-100'}>
       <div className={containerClass}>
         <div
           className={`mb-6 overflow-hidden rounded-[24px] border p-6 shadow-[0_24px_60px_rgba(15,23,42,0.34)] md:p-8 ${
@@ -133,7 +133,7 @@ export default function SupportHub({ mode = 'public' }: SupportHubProps) {
               </p>
             </div>
 
-            <aside className="rounded-[20px] border border-white/10 bg-white/[0.04] p-5">
+            <aside className="support-email-card rounded-[20px] border border-white/10 bg-white/[0.04] p-5">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-200">
                   <Mail size={20} aria-hidden="true" />

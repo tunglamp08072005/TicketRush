@@ -277,7 +277,7 @@ backend/src/main/java/com/ticketrush/
 ## 7) Definition Of Done For Each Feature Move
 
 - Builds successfully.
-- No route or API contract changes.
+- No route or API contract changes.![alt text](image.png)
 - Imports are local to feature where possible.
 - Shared modules only contain truly cross-feature code.
 - No duplicated service files remain.

@@ -1,4 +1,6 @@
-import { getAuthSession } from '../../auth/utils/authStorage';
+﻿import { getAuthSession } from '../../auth/utils/authStorage';
+
+const ADMIN_STATISTICS_API = 'http://localhost:8080/api/admin/statistics';
 
 export interface DemographicStatsResponse {
   totalBuyers: number;
@@ -24,17 +26,29 @@ export interface DemographicStatsResponse {
 }
 
 export async function fetchDemographicStats(eventId?: number): Promise<DemographicStatsResponse> {
-  const { token } = getAuthSession();
-  const url = eventId ? `/api/admin/statistics/demographics?eventId=${eventId}` : '/api/admin/statistics/demographics';
-  
-  const response = await fetch(url, {
+  const { token, role } = getAuthSession();
+  if (!token) {
+    throw new Error('Phien dang nhap da het. Vui long dang nhap lai.');
+  }
+  if (role !== 'ADMIN') {
+    throw new Error('Ban khong co quyen admin de xem thong ke khan gia.');
+  }
+
+  const url = new URL(`${ADMIN_STATISTICS_API}/demographics`);
+  if (eventId) {
+    url.searchParams.set('eventId', String(eventId));
+  }
+
+  const response = await fetch(url.toString(), {
     headers: {
-      'Authorization': `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   });
 
   if (!response.ok) {
-    throw new Error('Không thể tải dữ liệu thống kê khán giả');
+    const message = await response.text();
+    throw new Error(message || 'Khong the tai du lieu thong ke khan gia');
   }
+
   return response.json();
 }
