@@ -30,7 +30,7 @@ function getMenuIcon(key: DashboardMenuKey) {
 
 export default function Sidebar({ menuItems, activeMenu, onChangeMenu, onLogout }: SidebarProps) {
   return (
-    <aside className="relative flex h-screen w-[270px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white/90 px-5 py-8 shadow-[10px_0_40px_rgba(15,23,42,0.06)] backdrop-blur-2xl transition-all">
+    <aside className="sticky top-0 z-20 flex h-screen w-[270px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white/90 px-5 py-8 shadow-[10px_0_40px_rgba(15,23,42,0.06)] backdrop-blur-2xl transition-all">
       {/* Subtle glow effect behind sidebar */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-orange-50 to-transparent" />
 

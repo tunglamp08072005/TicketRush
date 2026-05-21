@@ -133,7 +133,7 @@ export default function SupportHub({ mode = 'public' }: SupportHubProps) {
               </p>
             </div>
 
-            <aside className="rounded-[20px] border border-white/10 bg-white/[0.04] p-5">
+            <aside className="support-email-card rounded-[20px] border border-white/10 bg-white/[0.04] p-5">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-200">
                   <Mail size={20} aria-hidden="true" />

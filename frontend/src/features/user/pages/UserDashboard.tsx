@@ -966,7 +966,7 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="user-dashboard-light relative flex min-h-screen overflow-hidden bg-[#f6f8fc] font-['Inter'] text-slate-900">
+    <div className="user-dashboard-light relative flex h-screen min-h-screen overflow-hidden bg-[#f6f8fc] font-['Inter'] text-slate-900">
       {/* Animated Background Effects */}
       <div className="hidden" />
       <div className="hidden">
@@ -996,7 +996,7 @@ export default function UserDashboard() {
         onLogout={handleLogout}
       />
 
-      <main className="relative flex-1 overflow-y-auto p-5 lg:p-8">
+      <main className="relative h-screen flex-1 overflow-y-auto p-5 lg:p-8">
         <DashboardHeader
           displayName={fullName.trim() || username || userMock.displayName}
           avatarUrl={avatarUrl}
