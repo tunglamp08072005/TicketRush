@@ -1,7 +1,11 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getAuthSession } from '../../auth/utils/authStorage';
-import { createPendingReservation, getPendingReservations } from '../../order-payment/services/pendingReservationService';
+import {
+  createPendingReservation,
+  getHoldCooldownSecondsLeft,
+  getPendingReservations,
+} from '../../order-payment/services/pendingReservationService';
 import { holdSeatsForPayment } from '../../order-payment/services/paymentService';
 import { getMyProfile } from '../../user/services/userProfileService';
 import { connectSeatRealtime, type SeatRealtimeUpdate } from '../../order-payment/realtime/realtimeSeatClient';
@@ -81,6 +85,7 @@ export default function EventSeatBookingPage() {
   const [error, setError] = useState('');
   const [seatError, setSeatError] = useState('');
   const [holdActionError, setHoldActionError] = useState('');
+  const [holdCooldownSecondsLeft, setHoldCooldownSecondsLeft] = useState(0);
   const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
   const [profileChecking, setProfileChecking] = useState(false);
   const [profileEligible, setProfileEligible] = useState(false);
@@ -306,7 +311,25 @@ export default function EventSeatBookingPage() {
 
   const holdDurationLabel = useMemo(() => formatHoldDurationLabel(holdMinutes), [holdMinutes]);
 
-  const canBookSeats = isLoggedIn && profileEligible && !profileChecking;
+  const holdCooldownLabel = useMemo(() => {
+    const minutes = Math.floor(holdCooldownSecondsLeft / 60);
+    const seconds = holdCooldownSecondsLeft % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }, [holdCooldownSecondsLeft]);
+
+  useEffect(() => {
+    const refreshCooldown = () => {
+      setHoldCooldownSecondsLeft(getHoldCooldownSecondsLeft());
+    };
+
+    refreshCooldown();
+    const timer = window.setInterval(refreshCooldown, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const canBookSeats = isLoggedIn && profileEligible && !profileChecking && holdCooldownSecondsLeft <= 0;
 
   const releaseQueueSlotIfNeeded = (id: number) => {
     if (!Number.isFinite(id) || !queueToken) {
@@ -409,6 +432,11 @@ export default function EventSeatBookingPage() {
       return;
     }
 
+    if (holdCooldownSecondsLeft > 0) {
+      setHoldActionError(`Bạn vừa bỏ lỡ một giữ chỗ. Vui lòng chờ ${holdCooldownLabel} trước khi đặt vé tiếp.`);
+      return;
+    }
+
     navigate(`/user/events/${id}/booking/payment`, {
       state: {
         seatIds: selectedSeatIds,
@@ -420,6 +448,11 @@ export default function EventSeatBookingPage() {
   const handleHoldSeat = async () => {
     const id = Number(eventId);
     if (!Number.isFinite(id) || selectedSeatIds.length === 0 || !eventDetail) {
+      return;
+    }
+
+    if (holdCooldownSecondsLeft > 0) {
+      setHoldActionError(`Bạn vừa bỏ lỡ một giữ chỗ. Vui lòng chờ ${holdCooldownLabel} trước khi đặt vé tiếp.`);
       return;
     }
 
@@ -597,7 +630,7 @@ export default function EventSeatBookingPage() {
                           <button
                             type="button"
                             className="seat-booking-primary"
-                            disabled={selectedSeatIds.length === 0}
+                            disabled={selectedSeatIds.length === 0 || holdCooldownSecondsLeft > 0}
                             onClick={handleBookAndPayNow}
                           >
                             Đặt chỗ và thanh toán ngay
@@ -606,7 +639,7 @@ export default function EventSeatBookingPage() {
                           <button
                             type="button"
                             className="seat-booking-secondary"
-                            disabled={selectedSeatIds.length === 0}
+                            disabled={selectedSeatIds.length === 0 || holdCooldownSecondsLeft > 0}
                             onClick={() => void handleHoldSeat()}
                           >
                             Giữ chỗ {holdDurationLabel}
@@ -614,6 +647,11 @@ export default function EventSeatBookingPage() {
                         </div>
                         {holdActionError ? (
                           <p className="seat-booking-feedback seat-booking-error hold-action-error">{holdActionError}</p>
+                        ) : null}
+                        {!holdActionError && holdCooldownSecondsLeft > 0 ? (
+                          <p className="seat-booking-feedback seat-booking-error hold-action-error">
+                            Bạn vừa bỏ lỡ một giữ chỗ. Vui lòng chờ {holdCooldownLabel} trước khi đặt vé tiếp.
+                          </p>
                         ) : null}
                       </div>
                     )}

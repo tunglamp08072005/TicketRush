@@ -209,7 +209,7 @@ public class PaymentController {
             return ResponseEntity.badRequest().body(ex.getMessage());
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Khong the cap nhat thong tin nhan hoan tien: " + ex.getMessage());
+                    .body("Không thể cập nhật thông tin nhận hoàn tiền: " + ex.getMessage());
         }
     }
 
