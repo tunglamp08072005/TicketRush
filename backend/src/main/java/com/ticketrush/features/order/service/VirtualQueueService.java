@@ -59,7 +59,7 @@ public class VirtualQueueService {
             return disabledResponse(eventId);
         }
 
-        trackEvent(eventId);
+        trackEvent(eventId);    
         cleanupExpiredAdmissions(eventId);
 
         String enterLockKey = enterLockKey(eventId, userId);
