@@ -74,34 +74,42 @@ public class EmailTicketService {
     }
 
     private String buildSubject(String eventName) {
-        return "TicketRush xac nhan ve - " + eventName;
+        return "TicketRush xác nhận vé - " + eventName;
     }
 
-    private String buildEmailContent(TicketOrder order, Event event, User user) {
-        StringJoiner sj = new StringJoiner("\n");
-        sj.add("Xin chao " + resolveDisplayName(user) + ",");
-        sj.add("");
-        sj.add("Don dat ve cua ban da duoc xac nhan thanh cong.");
-        sj.add("");
-        sj.add("THONG TIN VE");
-        sj.add("Su kien: " + event.getName());
-        sj.add("Dia diem: " + event.getLocation());
-        sj.add("Thoi gian: " + event.getEventStartDate().format(DATE_FORMATTER));
-        sj.add("Ma don: " + order.getQueueId());
-        sj.add("");
-        sj.add("DANH SACH GHE");
-        for (TicketOrderItem item : order.getItems()) {
-            sj.add("- " + item.getSeat().getSeatCode() + " - " + formatPrice(item.getPrice()));
-        }
-        sj.add("");
-        sj.add("Tong tien: " + formatPrice(order.getTotalAmount()));
-        sj.add("");
-        sj.add("Ma QR vao cong da duoc dinh kem trong email nay.");
-        sj.add("Vui long den truoc gio mo cua it nhat 30 phut va xuat trinh QR tai cong check-in.");
-        sj.add("");
-        sj.add("TicketRush");
-        return sj.toString();
+   private String buildEmailContent(TicketOrder order, Event event, User user) {
+    StringJoiner sj = new StringJoiner("\n");
+
+    sj.add("Xin chào " + resolveDisplayName(user) + ",");
+    sj.add("");
+
+    sj.add("Đơn đặt vé của bạn đã được xác nhận thành công.");
+    sj.add("");
+
+    sj.add("THÔNG TIN VÉ");
+    sj.add("Sự kiện: " + event.getName());
+    sj.add("Địa điểm: " + event.getLocation());
+    sj.add("Thời gian: " + event.getEventStartDate().format(DATE_FORMATTER));
+    sj.add("Mã đơn: " + order.getQueueId());
+    sj.add("");
+
+    sj.add("DANH SÁCH GHẾ");
+    for (TicketOrderItem item : order.getItems()) {
+        sj.add("- " + item.getSeat().getSeatCode() + " - " + formatPrice(item.getPrice()));
     }
+
+    sj.add("");
+    sj.add("Tổng tiền: " + formatPrice(order.getTotalAmount()));
+    sj.add("");
+
+    sj.add("Mã QR vào cổng đã được đính kèm trong email này.");
+    sj.add("Vui lòng đến trước giờ mở cửa ít nhất 30 phút và xuất trình mã QR tại cổng check-in.");
+    sj.add("");
+
+    sj.add("TicketRush");
+
+    return sj.toString();
+}
 
     private String resolveDisplayName(User user) {
         String profileText = user.getProfileText() == null ? "" : user.getProfileText().trim();

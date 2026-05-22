@@ -156,7 +156,7 @@ export async function holdSeatsForPayment(eventId: number, seatIds: number[], qu
   return await response.json();
 }
 
-export async function releaseHeldSeatsForPayment(eventId: number, seatIds: number[]): Promise<SeatReleaseResponse> {
+export async function releaseHeldSeatsForPayment(eventId: number, seatIds: number[], queueToken?: string): Promise<SeatReleaseResponse> {
   const { token } = getAuthSession();
   if (!token) {
     throw new Error('Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.');
@@ -174,6 +174,7 @@ export async function releaseHeldSeatsForPayment(eventId: number, seatIds: numbe
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(queueToken ? { 'X-Queue-Token': queueToken } : {}),
     },
     body: formData,
   });
