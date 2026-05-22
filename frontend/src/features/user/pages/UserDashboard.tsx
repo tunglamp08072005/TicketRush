@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearAuthSession, getAuthSession } from '../../auth/utils/authStorage';
 import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../services/userProfileService';
@@ -25,6 +25,7 @@ import {
   type PendingReservation,
 } from '../../order-payment/services/pendingReservationService';
 import {
+  clearQueueTokenInSession,
   getQueueAdmittedUntilFromSession,
   getQueueTokenFromSession,
   listQueueEventIdsInSession,
@@ -743,8 +744,9 @@ export default function UserDashboard() {
                       <button
                         type="button"
                         onClick={async () => {
+                          const queueToken = getQueueTokenFromSession(item.eventId) || undefined;
                           try {
-                            await releaseHeldSeatsForPayment(item.eventId, item.seatIds);
+                            await releaseHeldSeatsForPayment(item.eventId, item.seatIds, queueToken);
                             setPaymentsError('');
                           } catch (err) {
                             if (err instanceof Error) {
@@ -755,6 +757,7 @@ export default function UserDashboard() {
                             return;
                           }
 
+                          clearQueueTokenInSession(item.eventId);
                           removePendingReservation(item.id, { startCooldown: true });
                           setPendingReservations(getPendingReservations());
                         }}

@@ -1,4 +1,4 @@
-package com.ticketrush.features.payment.service;
+﻿package com.ticketrush.features.payment.service;
 
 import com.ticketrush.features.admin.notification.service.AdminNotificationHelper;
 import com.ticketrush.features.auth.service.EmailService;
@@ -90,7 +90,7 @@ public class PaymentService {
         ensureBookingProfileCompleted(user);
 
         if (paymentProofFile == null || paymentProofFile.isEmpty()) {
-            throw new IllegalArgumentException("Vui l\u00f2ng t\u1ea3i l\u00ean \u1ea3nh chuy\u1ec3n kho\u1ea3n \u0111\u1ec3 ti\u1ebfp t\u1ee5c");
+            throw new IllegalArgumentException("Vui lòng tải lên ảnh chuyển khoản để tiếp tục");
         }
 
         CheckoutContext context = loadCheckoutContext(user, eventId, seatIds);
@@ -151,7 +151,7 @@ public class PaymentService {
                     paymentUrl
             );
         } catch (UnsupportedEncodingException ex) {
-            throw new IllegalStateException("Kh\u00f4ng th\u1ec3 t\u1ea1o li\u00ean k\u1ebft thanh to\u00e1n VNPAY", ex);
+            throw new IllegalStateException("Không thể tạo liên kết thanh toán VNPAY", ex);
         }
     }
 
@@ -159,59 +159,59 @@ public class PaymentService {
     public VnPayReturnResponseDto handleVnPayReturn(Map<String, String> responseParams) {
         Long orderId = parseOrderId(responseParams.get("vnp_TxnRef"));
         if (!vnPayService.verifyCallback(responseParams)) {
-            return new VnPayReturnResponseDto(false, orderId, null, "Ch\u1eef k\u00fd VNPAY kh\u00f4ng h\u1ee3p l\u1ec7");
+            return new VnPayReturnResponseDto(false, orderId, null, "Chữ ký VNPAY không hợp lệ");
         }
 
         if (orderId == null) {
-            return new VnPayReturnResponseDto(false, null, null, "Thi\u1ebfu m\u00e3 \u0111\u01a1n h\u00e0ng VNPAY");
+            return new VnPayReturnResponseDto(false, null, null, "Thiếu mã đơn hàng VNPAY");
         }
 
         TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n h\u00e0ng VNPAY"));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng VNPAY"));
 
         if (order.getPaymentStatus() == PaymentStatus.APPROVED && order.getStatus() == OrderStatus.SUCCESS) {
-            return new VnPayReturnResponseDto(true, order.getId(), order.getQueueId(), "Thanh to\u00e1n \u0111\u00e3 \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn tr\u01b0\u1edbc \u0111\u00f3");
+            return new VnPayReturnResponseDto(true, order.getId(), order.getQueueId(), "Thanh toán đã được xác nhận trước đó");
         }
 
         if (order.getPaymentStatus() == PaymentStatus.REJECTED || order.getStatus() == OrderStatus.FAILED) {
-            return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u1edf tr\u1ea1ng th\u00e1i th\u1ea5t b\u1ea1i");
+            return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "Đơn hàng đã ở trạng thái thất bại");
         }
 
         BigDecimal callbackAmount = parseCallbackAmount(responseParams.get("vnp_Amount"));
         if (callbackAmount == null || callbackAmount.compareTo(order.getTotalAmount()) != 0) {
-            failOrderAndReleaseSeats(order, buildFailureNote(responseParams, "Sai l\u1ec7ch s\u1ed1 ti\u1ec1n thanh to\u00e1n"));
-            return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "S\u1ed1 ti\u1ec1n ph\u1ea3n h\u1ed3i t\u1eeb VNPAY kh\u00f4ng kh\u1edbp");
+            failOrderAndReleaseSeats(order, buildFailureNote(responseParams, "Sai lệch số tiền thanh toán"));
+            return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "Số tiền phản hồi từ VNPAY không khớp");
         }
 
         if (vnPayService.isSuccessfulResponse(responseParams)) {
             if (!canConfirmVnPayOrder(order)) {
-                failOrderAndReleaseSeats(order, "Giao d\u1ecbch VNPAY th\u00e0nh c\u00f4ng nh\u01b0ng gh\u1ebf kh\u00f4ng c\u00f2n \u0111\u01b0\u1ee3c gi\u1eef cho \u0111\u01a1n h\u00e0ng");
-                return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "Giao d\u1ecbch th\u00e0nh c\u00f4ng nh\u01b0ng gh\u1ebf \u0111\u00e3 h\u1ebft th\u1eddi gian gi\u1eef");
+                failOrderAndReleaseSeats(order, "Giao dịch VNPAY thành công nhưng ghế không còn được giữ cho đơn hàng");
+                return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "Giao dịch thành công nhưng ghế đã hết thời gian giữ");
             }
             confirmOrderPayment(order, buildSuccessNote(responseParams));
-            return new VnPayReturnResponseDto(true, order.getId(), order.getQueueId(), "Thanh to\u00e1n VNPAY th\u00e0nh c\u00f4ng");
+            return new VnPayReturnResponseDto(true, order.getId(), order.getQueueId(), "Thanh toán VNPAY thành công");
         }
 
-        failOrderAndReleaseSeats(order, buildFailureNote(responseParams, "Thanh to\u00e1n VNPAY kh\u00f4ng th\u00e0nh c\u00f4ng"));
-        return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "Thanh to\u00e1n VNPAY th\u1ea5t b\u1ea1i");
+        failOrderAndReleaseSeats(order, buildFailureNote(responseParams, "Thanh toán VNPAY không thành công"));
+        return new VnPayReturnResponseDto(false, order.getId(), order.getQueueId(), "Thanh toán VNPAY thất bại");
     }
     @Transactional
     public SeatHoldResponseDto holdSeatsForCheckout(User user, Long eventId, List<Long> seatIds) {
         ensureBookingProfileCompleted(user);
 
         if (seatIds == null || seatIds.isEmpty()) {
-            throw new IllegalArgumentException("Vui l\u00f2ng t\u1ea3i l\u00ean \u1ea3nh chuy\u1ec3n kho\u1ea3n \u0111\u1ec3 ti\u1ebfp t\u1ee5c");
+            throw new IllegalArgumentException("Vui lòng tải lên ảnh chuyển khoản để tiếp tục");
         }
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new IllegalArgumentException("S\u1ef1 ki\u1ec7n kh\u00f4ng t\u1ed3n t\u1ea1i"));
+                .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
 
         seatRepository.releaseExpiredLocksByEventId(event.getId(), LocalDateTime.now());
 
         List<Long> requestedSeatIds = normalizeSeatIds(seatIds);
         int normalizedMaxHoldSeats = Math.max(1, maxHoldSeatsPerUser);
         if (requestedSeatIds.size() > normalizedMaxHoldSeats) {
-            throw new IllegalArgumentException("Vui l\u00f2ng t\u1ea3i l\u00ean \u1ea3nh chuy\u1ec3n kho\u1ea3n \u0111\u1ec3 ti\u1ebfp t\u1ee5c");
+            throw new IllegalArgumentException("Vui lòng tải lên ảnh chuyển khoản để tiếp tục");
         }
 
         ensureNoDifferentActiveLockForUser(event.getId(), user.getId(), requestedSeatIds);
@@ -227,7 +227,7 @@ public class PaymentService {
             ensureSeatBelongsToEvent(event, seat);
 
             if (seat.getStatus() == SeatStatus.SOLD) {
-                throw new IllegalArgumentException("Vui l\u00f2ng t\u1ea3i l\u00ean \u1ea3nh chuy\u1ec3n kho\u1ea3n \u0111\u1ec3 ti\u1ebfp t\u1ee5c");
+                throw new IllegalArgumentException("Vui lòng tải lên ảnh chuyển khoản để tiếp tục");
             }
 
             boolean lockedByAnotherUser = seat.getStatus() == SeatStatus.LOCKED
@@ -235,7 +235,7 @@ public class PaymentService {
                     && (seat.getLockedUntil() == null || seat.getLockedUntil().isAfter(now));
 
             if (lockedByAnotherUser) {
-                throw new IllegalArgumentException("Vui l\u00f2ng t\u1ea3i l\u00ean \u1ea3nh chuy\u1ec3n kho\u1ea3n \u0111\u1ec3 ti\u1ebfp t\u1ee5c");
+                throw new IllegalArgumentException("Vui lòng tải lên ảnh chuyển khoản để tiếp tục");
             }
 
             boolean lockedByCurrentUser = seat.getStatus() == SeatStatus.LOCKED
@@ -274,11 +274,11 @@ public class PaymentService {
     @Transactional
     public SeatReleaseResponseDto releaseHeldSeats(User user, Long eventId, List<Long> seatIds) {
         if (seatIds == null || seatIds.isEmpty()) {
-            throw new IllegalArgumentException("Vui l\u00f2ng t\u1ea3i l\u00ean \u1ea3nh chuy\u1ec3n kho\u1ea3n \u0111\u1ec3 ti\u1ebfp t\u1ee5c");
+            throw new IllegalArgumentException("Vui lòng tải lên ảnh chuyển khoản để tiếp tục");
         }
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new IllegalArgumentException("S\u1ef1 ki\u1ec7n kh\u00f4ng t\u1ed3n t\u1ea1i"));
+                .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
 
         List<Long> requestedSeatIds = normalizeSeatIds(seatIds);
         List<Seat> seats = seatRepository.findAllByEventIdAndIdInForUpdate(eventId, requestedSeatIds);
@@ -328,35 +328,35 @@ public class PaymentService {
     @Transactional
     public PaymentOrderDto submitRefundBankInfo(User user, Long orderId, String bankName, String bankAccountNumber, String bankAccountHolder) {
         TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n h\u00e0ng"));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
 
         if (!Objects.equals(order.getUser().getId(), user.getId())) {
-            throw new IllegalArgumentException("B\u1ea1n kh\u00f4ng c\u00f3 quy\u1ec1n c\u1eadp nh\u1eadt \u0111\u01a1n h\u00e0ng n\u00e0y");
+            throw new IllegalArgumentException("Bạn không có quyền cập nhật đơn hàng này");
         }
         if (order.getPaymentStatus() != PaymentStatus.EXPIRED_PENDING_REFUND) {
-            throw new IllegalArgumentException("Ch\u1ec9 \u0111\u01a1n qu\u00e1 h\u1ea1n duy\u1ec7t m\u1edbi \u0111\u01b0\u1ee3c nh\u1eadp th\u00f4ng tin nh\u1eadn ho\u00e0n ti\u1ec1n");
+            throw new IllegalArgumentException("Chỉ đơn quá hạn duyệt mới được nhập thông tin nhận hoàn tiền");
         }
 
-        order.setRefundBankName(requireRefundValue(bankName, "Vui l\u00f2ng nh\u1eadp t\u00ean ng\u00e2n h\u00e0ng"));
-        order.setRefundBankAccountNumber(requireRefundValue(bankAccountNumber, "Vui l\u00f2ng nh\u1eadp s\u1ed1 t\u00e0i kho\u1ea3n"));
-        order.setRefundBankAccountHolder(requireRefundValue(bankAccountHolder, "Vui l\u00f2ng nh\u1eadp t\u00ean ch\u1ee7 t\u00e0i kho\u1ea3n"));
-        order.setPaymentNote("Kh\u00e1ch \u0111\u00e3 cung c\u1ea5p th\u00f4ng tin t\u00e0i kho\u1ea3n nh\u1eadn ho\u00e0n ti\u1ec1n.");
+        order.setRefundBankName(requireRefundValue(bankName, "Vui lòng nhập tên ngân hàng"));
+        order.setRefundBankAccountNumber(requireRefundValue(bankAccountNumber, "Vui lòng nhập số tài khoản"));
+        order.setRefundBankAccountHolder(requireRefundValue(bankAccountHolder, "Vui lòng nhập tên chủ tài khoản"));
+        order.setPaymentNote("Khách đã cung cấp thông tin tài khoản nhận hoàn tiền.");
         return toDto(ticketOrderRepository.save(order));
     }
 
     @Transactional
     public PaymentOrderDto approvePayment(Long orderId, String note) {
         TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n h\u00e0ng"));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
 
         if (order.getPaymentStatus() == PaymentStatus.EXPIRED_PENDING_REFUND) {
-            throw new IllegalArgumentException("\u0110\u01a1n h\u00e0ng \u0111\u00e3 qu\u00e1 h\u1ea1n duy\u1ec7t v\u00e0 ch\u1ec9 c\u00f3 th\u1ec3 x\u1eed l\u00fd ho\u00e0n ti\u1ec1n");
+            throw new IllegalArgumentException("Đơn hàng đã quá hạn duyệt và chỉ có thể xử lý hoàn tiền");
         }
         if (order.getPaymentStatus() == PaymentStatus.REFUNDED) {
-            throw new IllegalArgumentException("\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c ho\u00e0n ti\u1ec1n");
+            throw new IllegalArgumentException("Đơn hàng đã được hoàn tiền");
         }
         if (order.getPaymentStatus() != PaymentStatus.PENDING_REVIEW) {
-            throw new IllegalArgumentException("\u0110\u01a1n h\u00e0ng kh\u00f4ng \u1edf tr\u1ea1ng th\u00e1i ch\u1edd duy\u1ec7t");
+            throw new IllegalArgumentException("Đơn hàng không ở trạng thái chờ duyệt");
         }
 
         confirmOrderPayment(order, cleanNote(note));
@@ -366,10 +366,10 @@ public class PaymentService {
     @Transactional
     public PaymentOrderDto rejectPayment(Long orderId, String note) {
         TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n h\u00e0ng"));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
 
         if (order.getPaymentStatus() != PaymentStatus.PENDING_REVIEW) {
-            throw new IllegalArgumentException("\u0110\u01a1n h\u00e0ng kh\u00f4ng \u1edf tr\u1ea1ng th\u00e1i ch\u1edd duy\u1ec7t");
+            throw new IllegalArgumentException("Đơn hàng không ở trạng thái chờ duyệt");
         }
 
         failOrderAndReleaseSeats(order, cleanNote(note));
@@ -379,17 +379,17 @@ public class PaymentService {
     @Transactional
     public PaymentOrderDto confirmRefund(Long orderId, String note) {
         TicketOrder order = ticketOrderRepository.findDetailByIdForUpdate(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n h\u00e0ng"));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
 
         if (order.getPaymentStatus() != PaymentStatus.EXPIRED_PENDING_REFUND) {
-            throw new IllegalArgumentException("Ch\u1ec9 \u0111\u01a1n qu\u00e1 h\u1ea1n ch\u1edd ho\u00e0n ti\u1ec1n m\u1edbi \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn ho\u00e0n ti\u1ec1n");
+            throw new IllegalArgumentException("Chỉ đơn quá hạn chờ hoàn tiền mới được xác nhận hoàn tiền");
         }
 
         releaseOrderSeats(order);
         order.setStatus(OrderStatus.FAILED);
         order.setPaymentStatus(PaymentStatus.REFUNDED);
         order.setPaymentReviewedAt(LocalDateTime.now());
-        order.setPaymentNote(cleanNote(note) == null ? "\u0110\u00e3 ho\u00e0n ti\u1ec1n 100% cho kh\u00e1ch h\u00e0ng" : cleanNote(note));
+        order.setPaymentNote(cleanNote(note) == null ? "Đã hoàn tiền 100% cho khách hàng" : cleanNote(note));
 
         TicketOrder saved = ticketOrderRepository.save(order);
         sendRefundEmailAfterCommit(saved);
@@ -404,7 +404,7 @@ public class PaymentService {
             order.setStatus(OrderStatus.FAILED);
             order.setPaymentStatus(PaymentStatus.EXPIRED_PENDING_REFUND);
             order.setPaymentReviewedAt(LocalDateTime.now());
-            order.setPaymentNote("Qu\u00e1 h\u1ea1n duy\u1ec7t tr\u01b0\u1edbc th\u1eddi \u0111i\u1ec3m s\u1ef1 ki\u1ec7n. Ch\u1edd ho\u00e0n ti\u1ec1n 100%.");
+            order.setPaymentNote("Quá hạn duyệt trước thời điểm sự kiện. Chờ hoàn tiền 100%.");
             order.setRefundBankName(null);
             order.setRefundBankAccountNumber(null);
             order.setRefundBankAccountHolder(null);
@@ -415,11 +415,11 @@ public class PaymentService {
     }
     private CheckoutContext loadCheckoutContext(User user, Long eventId, List<Long> seatIds) {
         if (seatIds == null || seatIds.isEmpty()) {
-            throw new IllegalArgumentException("B\u1ea1n ch\u01b0a ch\u1ecdn gh\u1ebf \u0111\u1ec3 thanh to\u00e1n");
+            throw new IllegalArgumentException("Bạn chưa chọn ghế để thanh toán");
         }
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new IllegalArgumentException("S\u1ef1 ki\u1ec7n kh\u00f4ng t\u1ed3n t\u1ea1i"));
+                .orElseThrow(() -> new IllegalArgumentException("Sự kiện không tồn tại"));
 
         seatRepository.releaseExpiredLocksByEventId(event.getId(), LocalDateTime.now());
 
@@ -437,7 +437,7 @@ public class PaymentService {
                     && (seat.getLockedUntil() == null || seat.getLockedUntil().isAfter(now));
 
             if (!available && !lockedByCurrentUser) {
-                throw new IllegalArgumentException("Gh\u1ebf " + seat.getSeatCode() + " kh\u00f4ng c\u00f2n kh\u1ea3 d\u1ee5ng");
+                throw new IllegalArgumentException("Ghế " + seat.getSeatCode() + " không còn khả dụng");
             }
         }
 
@@ -451,7 +451,7 @@ public class PaymentService {
                 .toList();
 
         if (requestedSeatIds.isEmpty()) {
-            throw new IllegalArgumentException("Danh s\u00e1ch gh\u1ebf kh\u00f4ng h\u1ee3p l\u1ec7");
+            throw new IllegalArgumentException("Danh sách ghế không hợp lệ");
         }
         return requestedSeatIds;
     }
@@ -471,7 +471,7 @@ public class PaymentService {
         Set<Long> requestedSet = new HashSet<>(requestedSeatIds);
         if (!activeSet.equals(requestedSet)) {
             throw new IllegalArgumentException(
-                    "B\u1ea1n \u0111ang c\u00f3 gh\u1ebf gi\u1eef ch\u1ed7 cho s\u1ef1 ki\u1ec7n n\u00e0y. Vui l\u00f2ng ho\u00e0n t\u1ea5t ho\u1eb7c h\u1ee7y \u0111\u01a1n hi\u1ec7n t\u1ea1i tr\u01b0\u1edbc khi ch\u1ecdn gh\u1ebf kh\u00e1c."
+                    "Bạn đang có ghế giữ chỗ cho sự kiện này. Vui lòng hoàn tất hoặc hủy đơn hiện tại trước khi chọn ghế khác."
             );
         }
     }
@@ -621,7 +621,7 @@ public class PaymentService {
             emailService.sendVerificationCode(
                     toEmail,
                     "TicketRush - Xac nhan hoan tien don " + order.getQueueId(),
-                    "B\u1ea1n \u0111ang c\u00f3 gh\u1ebf gi\u1eef ch\u1ed7 cho s\u1ef1 ki\u1ec7n n\u00e0y. Vui l\u00f2ng ho\u00e0n t\u1ea5t ho\u1eb7c h\u1ee7y \u0111\u01a1n hi\u1ec7n t\u1ea1i tr\u01b0\u1edbc khi ch\u1ecdn gh\u1ebf kh\u00e1c."
+                    "Bạn đang có ghế giữ chỗ cho sự kiện này. Vui lòng hoàn tất hoặc hủy đơn hiện tại trước khi chọn ghế khác."
                             + "Don hang " + order.getQueueId() + " da duoc TicketRush xac nhan hoan tien thanh cong.\n"
                             + "So tien hoan: " + order.getTotalAmount().stripTrailingZeros().toPlainString() + " VND.\n\n"
                             + "TicketRush thanh that xin loi vi yeu cau thanh toan cua ban khong duoc xu ly kip truoc su kien.\n"
@@ -649,7 +649,7 @@ public class PaymentService {
             emailService.sendVerificationCode(
                     toEmail,
                     "TicketRush - Xin loi va thong bao hoan tien don " + order.getQueueId(),
-                    "B\u1ea1n \u0111ang c\u00f3 gh\u1ebf gi\u1eef ch\u1ed7 cho s\u1ef1 ki\u1ec7n n\u00e0y. Vui l\u00f2ng ho\u00e0n t\u1ea5t ho\u1eb7c h\u1ee7y \u0111\u01a1n hi\u1ec7n t\u1ea1i tr\u01b0\u1edbc khi ch\u1ecdn gh\u1ebf kh\u00e1c."
+                    "Bạn đang có ghế giữ chỗ cho sự kiện này. Vui lòng hoàn tất hoặc hủy đơn hiện tại trước khi chọn ghế khác."
                             + "Ban to chuc rat tiec vi khong kip xu ly ve cua ban truoc gio dien.\n"
                             + "Don hang " + order.getQueueId() + " da duoc huy va chung toi se hoan lai 100% so tien ban da thanh toan.\n\n"
                             + "Vui long vao muc Lich su thanh toan de nhap thong tin ngan hang nhan hoan tien.\n"
@@ -671,7 +671,7 @@ public class PaymentService {
 
     private void ensureSeatBelongsToEvent(Event event, Seat seat) {
         if (!Objects.equals(seat.getEvent().getId(), event.getId())) {
-            throw new IllegalArgumentException("C\u00f3 gh\u1ebf kh\u00f4ng thu\u1ed9c s\u1ef1 ki\u1ec7n \u0111\u00e3 ch\u1ecdn");
+            throw new IllegalArgumentException("Có ghế không thuộc sự kiện đã chọn");
         }
     }
 
@@ -689,7 +689,7 @@ public class PaymentService {
         if (payDate != null && !payDate.isBlank()) {
             details.add("paidAt " + payDate);
         }
-        return details.isEmpty() ? "Thanh to\u00e1n VNPAY th\u00e0nh c\u00f4ng" : String.join(" | ", details);
+        return details.isEmpty() ? "Thanh toán VNPAY thành công" : String.join(" | ", details);
     }
 
     private String buildFailureNote(Map<String, String> responseParams, String fallbackMessage) {
@@ -751,7 +751,7 @@ public class PaymentService {
         String phoneNumber = user.getPhoneNumber() == null ? "" : user.getPhoneNumber().trim();
 
         if (fullName.isEmpty() || phoneNumber.isEmpty()) {
-            throw new IllegalArgumentException("Vui l\u00f2ng c\u1eadp nh\u1eadt h\u1ed3 s\u01a1 (h\u1ecd v\u00e0 t\u00ean, s\u1ed1 \u0111i\u1ec7n tho\u1ea1i) tr\u01b0\u1edbc khi \u0111\u1eb7t v\u00e9");
+            throw new IllegalArgumentException("Vui lòng cập nhật hồ sơ (họ và tên, số điện thoại) trước khi đặt vé");
         }
     }
 
@@ -760,7 +760,7 @@ public class PaymentService {
         Set<Long> loaded = loadedSeats.stream().map(Seat::getId).collect(Collectors.toSet());
 
         if (!loaded.containsAll(requested)) {
-            throw new IllegalArgumentException("C\u00f3 gh\u1ebf kh\u00f4ng t\u1ed3n t\u1ea1i trong h\u1ec7 th\u1ed1ng");
+            throw new IllegalArgumentException("Có ghế không tồn tại trong hệ thống");
         }
     }
 
@@ -829,5 +829,6 @@ public class PaymentService {
     private record CheckoutContext(Event event, List<Seat> seats) {
     }
 }
+
 
 

@@ -1,4 +1,5 @@
 export type RoleType = 'USER' | 'ADMIN';
+const QUEUE_API_BASE = 'http://localhost:8080/api/virtual-queue/events';
 
 type JwtPayload = {
   exp?: number;
@@ -57,6 +58,37 @@ function removeSessionStorageKeysByPrefixes(prefixes: string[]): void {
     }
   } catch {
     // Ignore storage restriction.
+  }
+}
+
+function releaseQueueTokensOnLogout(): void {
+  try {
+    const queueEntries: Array<{ eventId: number; token: string }> = [];
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (!key || !key.startsWith('virtual_queue_token_')) {
+        continue;
+      }
+
+      const eventId = Number(key.replace('virtual_queue_token_', ''));
+      const token = sessionStorage.getItem(key) || '';
+      if (!Number.isFinite(eventId) || !token) {
+        continue;
+      }
+
+      queueEntries.push({ eventId, token });
+    }
+
+    for (const entry of queueEntries) {
+      const url = `${QUEUE_API_BASE}/${entry.eventId}/beacon-release/${encodeURIComponent(entry.token)}`;
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        navigator.sendBeacon(url);
+      } else {
+        void fetch(url, { method: 'POST', keepalive: true }).catch(() => undefined);
+      }
+    }
+  } catch {
+    // Ignore storage/network failures on logout cleanup.
   }
 }
 
@@ -133,6 +165,7 @@ export function clearAuthSession(): void {
   localStorage.removeItem('username');
 
   try {
+    releaseQueueTokensOnLogout();
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('role');
     sessionStorage.removeItem('username');

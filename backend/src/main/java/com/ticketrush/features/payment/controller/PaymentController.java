@@ -152,6 +152,7 @@ public class PaymentController {
     @PostMapping("/api/user/payments/release-hold")
     public ResponseEntity<?> releaseHeldSeats(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestHeader(value = "X-Queue-Token", required = false) String queueToken,
             @RequestParam("eventId") Long eventId,
             @RequestParam("seatIds") String seatIdsRaw
     ) {
@@ -164,6 +165,7 @@ public class PaymentController {
                     .toList();
 
             SeatReleaseResponseDto response = paymentService.releaseHeldSeats(user, eventId, seatIds);
+            virtualQueueService.releaseAdmission(eventId, user.getId(), queueToken);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
