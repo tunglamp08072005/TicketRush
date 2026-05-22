@@ -38,6 +38,28 @@ function normalizeStoredToken(token: string | null | undefined): string | null {
   return token.replace(/^Bearer\s+/i, '').trim();
 }
 
+function removeSessionStorageKeysByPrefixes(prefixes: string[]): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (!key) {
+        continue;
+      }
+
+      if (prefixes.some(prefix => key.startsWith(prefix))) {
+        keysToRemove.push(key);
+      }
+    }
+
+    for (const key of keysToRemove) {
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage restriction.
+  }
+}
+
 export function normalizeAuthRole(role: string | null | undefined): RoleType {
   const normalized = (role || 'USER').toUpperCase().trim().replace(/^ROLE_/, '');
   return normalized === 'ADMIN' ? 'ADMIN' : 'USER';
@@ -50,6 +72,9 @@ export function setAuthSession(token: string, role: string, username?: string): 
   if (!normalizedToken) {
     return;
   }
+
+  // New login starts a fresh queue session to avoid reusing old waiting-room tokens.
+  removeSessionStorageKeysByPrefixes(['virtual_queue_token_', 'virtual_queue_admitted_until_']);
 
   try {
     sessionStorage.setItem('token', normalizedToken);
@@ -111,6 +136,7 @@ export function clearAuthSession(): void {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('role');
     sessionStorage.removeItem('username');
+    removeSessionStorageKeysByPrefixes(['virtual_queue_token_', 'virtual_queue_admitted_until_']);
   } catch {
     // Ignore storage restriction.
   }

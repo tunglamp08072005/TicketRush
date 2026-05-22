@@ -192,8 +192,6 @@ export default function UserDashboard() {
   const [paymentsError, setPaymentsError] = useState('');
   const [paymentsSuccess, setPaymentsSuccess] = useState('');
   const [queueEventId, setQueueEventId] = useState<number | null>(null);
-  const [queueReturnPath, setQueueReturnPath] = useState('');
-  const [queueSlotSecondsLeft, setQueueSlotSecondsLeft] = useState<number | null>(null);
   const [eventsSearchKeyword, setEventsSearchKeyword] = useState('');
   const [eventsSearchSubmitToken, setEventsSearchSubmitToken] = useState(0);
   const [ticketsData, setTicketsData] = useState<TicketItem[]>([]);
@@ -216,6 +214,10 @@ export default function UserDashboard() {
   const [gender, setGender] = useState('');
   const [birthday, setBirthday] = useState('');
   const [loginProvider, setLoginProvider] = useState<string | undefined>(undefined);
+  const activePendingReservation = pendingReservations[0] ?? null;
+  const activeHoldSecondsLeft = activePendingReservation
+    ? Math.max(0, Math.ceil((new Date(activePendingReservation.expiresAt).getTime() - Date.now()) / 1000))
+    : null;
 
   useEffect(() => {
     const state = (location.state as {
@@ -236,58 +238,59 @@ export default function UserDashboard() {
       const availableQueueEvents = listQueueEventIdsInSession();
       setQueueEventId(availableQueueEvents.length > 0 ? availableQueueEvents[0] : null);
     }
-
-    setQueueReturnPath(state?.returnToBookingPath || '');
   }, [location.state]);
 
   useEffect(() => {
     if (!queueEventId || !Number.isFinite(queueEventId)) {
-      setQueueSlotSecondsLeft(null);
       return;
     }
 
     const queueToken = getQueueTokenFromSession(queueEventId);
     if (!queueToken) {
-      setQueueSlotSecondsLeft(null);
       return;
     }
 
-    const refreshCountdown = () => {
+    const refreshAdmission = () => {
       const admittedUntil = getQueueAdmittedUntilFromSession(queueEventId);
       if (!admittedUntil || admittedUntil <= Date.now()) {
-        setQueueSlotSecondsLeft(null);
         return;
       }
-
-      setQueueSlotSecondsLeft(Math.max(0, Math.ceil((admittedUntil - Date.now()) / 1000)));
     };
 
     const beat = () => {
       void heartbeatVirtualQueue(queueEventId, queueToken)
         .then(status => {
           setQueueAdmittedUntilInSession(queueEventId, status.admittedUntilEpochMs ?? null);
-          refreshCountdown();
+          refreshAdmission();
         })
         .catch(() => {
-          setQueueSlotSecondsLeft(null);
+          // Keep the dashboard usable; the booking page will re-validate the token.
         });
     };
 
-    refreshCountdown();
+    refreshAdmission();
     beat();
 
     const heartbeatTimer = window.setInterval(beat, PROFILE_HEARTBEAT_INTERVAL_MS);
-    const countdownTimer = window.setInterval(refreshCountdown, 1000);
 
     return () => {
       window.clearInterval(heartbeatTimer);
-      window.clearInterval(countdownTimer);
     };
   }, [queueEventId]);
 
   useEffect(() => {
     setPendingReservations(getPendingReservations());
   }, [activeMenu]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setPendingReservations(getPendingReservations());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const loadMyPayments = async () => {
@@ -614,10 +617,8 @@ export default function UserDashboard() {
           gender={gender}
           birthday={birthday}
           loginProvider={loginProvider}
-          queueSlotSecondsLeft={queueSlotSecondsLeft}
-          onReturnToBooking={queueEventId
-            ? () => navigate(queueReturnPath || `/user/events/${queueEventId}/booking`)
-            : undefined}
+          activeHoldSecondsLeft={activeHoldSecondsLeft}
+          onOpenPayments={() => setActiveMenu('payments')}
           onAvatarFileChange={file => {
             setAvatarFile(file);
             setSuccess('');
@@ -754,7 +755,7 @@ export default function UserDashboard() {
                             return;
                           }
 
-                          removePendingReservation(item.id);
+                          removePendingReservation(item.id, { startCooldown: true });
                           setPendingReservations(getPendingReservations());
                         }}
                         className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200"

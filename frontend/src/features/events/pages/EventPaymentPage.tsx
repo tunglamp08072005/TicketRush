@@ -4,7 +4,7 @@ import { checkoutPayment, fetchMyPayments } from '../../order-payment/services/p
 // VNPay is temporarily hidden from the frontend. Re-enable this import when needed:
 // import { checkoutPayment, createVnPayPayment, fetchMyPayments } from '../../order-payment/services/paymentService';
 import { getAuthSession } from '../../auth/utils/authStorage';
-import { removePendingReservation } from '../../order-payment/services/pendingReservationService';
+import { clearHoldCooldown, removePendingReservation } from '../../order-payment/services/pendingReservationService';
 import { getPublicEventDetail, getPublicSeatMap, type SeatMapSeat, type UserEventDetail } from '../services/eventService';
 import { heartbeatVirtualQueue, sendVirtualQueueReleaseBeacon } from '../services/virtualQueueService';
 import {
@@ -343,6 +343,7 @@ export default function EventPaymentPage() {
       setBookedSeatCodes(order.seatCodes);
       setPaymentProof(null);
       clearAllQueueTokensInSession();
+      clearHoldCooldown();
       if (checkoutTimerStorageKey) {
         window.sessionStorage.removeItem(checkoutTimerStorageKey);
       }
